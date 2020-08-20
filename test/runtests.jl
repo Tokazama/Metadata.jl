@@ -38,3 +38,5 @@ end
     @test mx[1:2] == [1, 2]
     @test metadata(mx[1:2]) == metadata(mx)
 end
+
+

@@ -1,42 +1,55 @@
 
-_eltype_is_parent_eltype(::Type{T}, ::Type{V}) where {T,V} = V <: eltype(parent_type(T))
+
+# as in "element metadata" not "el (the) metadata"
+const ElMeta{T,L,M} = Tuple{T,NamedTuple{L,M}}
+
+function _elmeta_type(::Type{T}, ::Type{NamedTuple{L,M}}) where {T,L,M}
+    return Tuple{T,NamedTuple{L,Tuple{ntuple(i -> eltype(T.parameters[i]), Val(length(L)))...}}}
+end
+
+
+@inline function _meta_element(x::T, m::NamedTuple{L,M}, index::Int) where {T,L,M}
+    return (x, NamedTuple{L}(ntuple(i -> @inbounds(m[L[i]][index]), Val(length(L)))))
+end
 
 """
     ElementwiseMetaArray
 
 Array with metadata at each element.
 """
-struct ElementwiseMetaArray{T,N,P<:AbstractArray{Tuple{T,<:Any},N}} <: AbstractArray{T,N}
+struct ElementwiseMetaArray{T,N,P<:AbstractArray{<:ElMeta{T},N}} <: AbstractArray{T,N}
     parent::P
+
+    function ElementwiseMetaArray(p::AbstractArray{Tuple{T,<:NamedTuple}}) where {T}
+        return new{T,ndims(p),typeof(p)}(p)
+    end
+
+    function ElementwiseMetaArray(p::AbstractArray{T}, m::NamedTuple{L}) where {T,L}
+        return ElementwiseMetaArray(
+            map(i -> _meta_element(@inbounds(x[i]), m, i), ArrayInterface.indices((p, m...)))
+        )
+    end
+
+    ElementwiseMetaArray(args::Vararg{<:ElMeta}) = ElementwiseMetaArray(collect(args))
 end
 
 ArrayInterface.parent_type(::Type{ElementwiseMetaArray{T,N,P}}) where {T,N,P} = P
+
 Base.parent(A::ElementwiseMetaArray) = getfield(A, :parent)
 
 function metadata_type(::Type{T}) where {T<:ElementwiseMetaArray}
     return eltype(parent_type(T)).parameters[2]
 end
 
-@inline function metadata_keys(x::ElementwiseMetaArray{T,N,P}) where {T,N,P}
-    ks = knonw_keys(metadata_type(x))
-    if ks === nothing
-        # if metadata is not known parametrically (e.g., NamedTuple{L}) then we
-        # need to get the keys from the metadata at any given element
-        return keys(first(parent(x)))
-    else
-        return ks
-    end
-end
+metadata_keys(x::ElementwiseMetaArray{T,N,P}) where {T,N,P} = _metadata_keys(eltype(P))
+_metadata_keys(::Type{ElMeta{T,L,M}}) where {T,L,M} = L
 
 @propagate_inbounds function Base.getindex(A::ElementwiseMetaArray{T}, args...) where {T}
-    return _reconstruct_elementwise_array(A, getindex(parent(A), args...))
-end
-
-@inline function _elwise_getindex(A::ElementwiseMetaArray, val)
-    if _eltype_is_parent_eltype(typeof(A), typeof(val))
-        return first(val)
-    else
+    p = getindex(parent(A), args...)
+    if p isa AbstractArray
         return ElementwiseMetaArray(val)
+    else
+        return first(p)
     end
 end
 
@@ -44,6 +57,7 @@ end
 @propagate_inbounds function Base.setindex!(A::ElementwiseMetaArray, val, args...)
     return setindex!(parent(A), val, args...)
 end
+
 
 """
     MetaView
@@ -60,32 +74,29 @@ end
 ArrayInterface.parent_type(::Type{MetaView{L,T,N,P}}) where {L,T,N,P} = P
 Base.parent(x::MetaView) = getfield(x, :parent)
 
-@propagate_inbounds function Base.getindex(x::MetaView, args...)
-    return _meta_getindex(x, getindex(parent(x), args...))
-end
-
-@inline function _meta_getindex(A::MetaView{L,T}, val) where {L,T}
-    if _eltype_is_parent_eltype(typeof(A), typeof(val))
-        return metadata(last(val), L)
+@propagate_inbounds function Base.getindex(x::MetaView{L,T}, args...) where {L,T}
+    if val isa T
+        return val
     else
-        return MetaView{L,T}(val)
+        return MetaView{L}(val)
     end
 end
 
 @inline function metadata(A::ElementwiseMetaArray)
     ks = metadata_keys(A)
-    return _metadata(ks, map(k -> metadata(k, k), ks))
-end
-
-_el_metadata(ks::Tuple, vs::Tuple) = NamedTuple{ks,typeof(vs)}(vs)
-
-function _el_metadata(ks, vs)
-    d = Dict{Symbol,eltype(vs)}()
-    for (k_i,v_i) in pair(ks,vs)
-        d[k_i] = v_i
-    end
-    return d
+    return NamedTuple{ks}(map(k -> metadata(k, k), ks))
 end
 
 metadata(A::ElementwiseMetaArray, k::Symbol) = MetaView{k}(parent(A))
 
+Base.getproperty(A::ElementwiseMetaArray, k::Symbol) = metadata(A, k)
+
+Base.propertynames(A::ElementwiseMetaArray) = metadata_keys(A)
+
+#=
+struct AdjacencyList{T,L<:AbstractVector{<:AbstractVector{T}}} <: AbstractGraph{T}
+    list::L
+end
+
+const MetaAdjacencyList{T,M} = AdjacencyList{T,Vector{ElementwiseMetaArray{T,1,Vector{Tuple{T,M}}}}}
+=#

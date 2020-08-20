@@ -130,13 +130,6 @@ Returns true if `x` has metadata with a mapping for `k`.
 end
 
 """
-    attach_metadata(x, metadata)
-
-Generic method for attaching metadata to `x`.
-"""
-attach_metadata(m) = Fix2(attach_metadata, m)
-
-"""
     share_metadata(src, dst) -> attach_metadata(dst, metadata(src))
 
 Shares the metadata from `src` by attaching it to `dst`.
@@ -194,9 +187,12 @@ at the axis corresponding to `dim`.
 """
 has_axis_metaproperty(x, i, meta_key::Symbol) = _has_metaproperty(axis_meta(x, i), meta_key)
 
-##
-### keys
-###
+
+"""
+    known_keys(::Type{T}) where {T}
+
+Returns the keys of `T` if they are known at compile time. Otherwise, returns nothing.
+"""
 known_keys(x) = known_keys(typeof(x))
 known_keys(::Type{T}) where {T} = nothing
 known_keys(::Type{NamedTuple{L,T}}) where {L,T} = L

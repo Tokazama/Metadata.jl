@@ -14,30 +14,35 @@ export
     metadata_type,
     share_metadata
 
+include("utils.jl")
 include("methods.jl")
-include("arrays.jl")
+include("metaarray.jl")
+include("ranges.jl")
 include("metastruct.jl")
 include("elementwise.jl")
 
-for T in (:MetaArray,)
-    @eval begin
-        function Base.similar(A::$T, t::Type, dims)
-            return Metadata.share_metadata(A, similar(parent(A), t, dims))
-        end
+"""
+    attach_metadata(x, metadata)
 
-        function Base.similar(A::$T, t::Type, dims::Tuple{Union{Integer,OneTo},Vararg{Union{Integer,OneTo}}})
-            return Metadata.maybe_propagate_metadata(A, similar(parent(A), t, dims))
-        end
-
-        function Base.similar(A::$T, t::Type=eltype(A), dims::Tuple{Vararg{Int64}}=size(A))
-            return Metadata.maybe_propagate_metadata(A, similar(parent(A), t, dims))
-        end
-
-        function Base.similar(A::$T, t::Type, dims::Union{Integer,AbstractUnitRange}...)
-            return Metadata.maybe_propagate_metadata(A, similar(parent(A), t, dims))
-        end
+Generic method for attaching metadata to `x`.
+"""
+function attach_metadata(x::AbstractArray, m; elementwise::Bool=false)
+    if elementwise
+        return ElementwiseMetaArray(x, m)
+    else
+        return MetaArray(x, m)
     end
 end
+
+function attach_metadata(x::AbstractRange, m)
+    if known_step(x) === oneunit(eltype(x))
+        return MetaUnitRange(x, m)
+    else
+        return MetaRange(x, m)
+    end
+end
+
+attach_metadata(m) = Fix2(attach_metadata, m)
 
 @defsummary MetaStruct
 
