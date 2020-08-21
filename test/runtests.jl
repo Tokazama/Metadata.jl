@@ -67,11 +67,13 @@ end
     x = LinearIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
     @test metadata(x, dim=1) == meta
     @test has_metadata(x, dim=1)
+    @test !has_metadata(x)
 
     meta = (m1 =1, m2=[1, 2])
     x = CartesianIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
     @test metadata(x, dim=1) == meta
     @test has_metadata(x, dim=1)
+    @test !has_metadata(x)
 end
 
 @testset "MetaArray(LinearIndices)" begin

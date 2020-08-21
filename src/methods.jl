@@ -110,7 +110,7 @@ metadata_type(x, ::Val{dim}) where {dim} =
 metadata_type(::Type{T}, ::Val{dim}) where {T, dim} = metadata_type(T, dim)
 function metadata_type(::Type{T}, dim) where {T}
     if parent_type(T) <: T
-        return no_metadata
+        return NoMetadata
     else
         return metadata_type(parent_type(T), dim)
     end
@@ -150,9 +150,9 @@ of a metadata paired to `k`. If `dim` is specified then this checks the metadata
 the corresponding dimension.
 """
 has_metadata(x; dim=nothing) = _has_metadata(x, dim)
-_has_metadata(x, ::Nothing) = !(metadata_type(x) isa NoMetadata)
+_has_metadata(x, ::Nothing) = !(metadata_type(x) <: NoMetadata)
 _has_metadata(x, ::Val{dim}) where {dim} = has_metadata(x; dim=dim)
-_has_metadata(x, dim) = !(metadata_type(x, dim) isa NoMetadata)
+_has_metadata(x, dim) = !(metadata_type(x, dim) <: NoMetadata)
 
 has_metadata(x, k; dim=nothing) = _has_metadata(x, k, dim)
 _has_metadata(x, k, ::Val{dim}) where {dim} = has_metadata(x, k; dim=dim)
