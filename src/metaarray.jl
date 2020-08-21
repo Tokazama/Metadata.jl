@@ -4,6 +4,21 @@
 
 Custom `AbstractArray` object to store an `AbstractArray` `parent` as well as
 some `metadata`.
+
+## Examples
+
+```jldoctest
+julia> using Metadata
+
+julia> Metadata.MetaArray(ones(2,2), metadata=(m1 =1, m2=[1, 2]))
+2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}})
+  • metadata:
+    - m1 = 1
+    - m2 = [1, 2]
+ 1.0  1.0
+ 1.0  1.0
+
+```
 """
 struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     parent::A
@@ -28,15 +43,6 @@ Base.axes(s::MetaArray) = Base.axes(parent(s))
 Base.IndexStyle(T::Type{<:MetaArray}) = IndexStyle(parent_type(T))
 
 ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
-
-"""
-    MetaVector{T, M, S<:AbstractArray}
-
-Type for storing metadata alongside a vector.
-"""
-const MetaVector{T, M, S<:AbstractArray} = MetaArray{T, 1, M, S}
-
-MetaVector(v::AbstractVector, n = ()) = MetaArray(v, n)
 
 @propagate_inbounds function Base.getindex(A::MetaArray{T}, args...) where {T}
     return _getindex(A, getindex(parent(A), args...))

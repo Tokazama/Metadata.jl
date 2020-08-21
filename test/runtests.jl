@@ -1,5 +1,6 @@
 using Test
 using Metadata
+using Documenter
 
 @testset "MetaArray" begin
     x = ones(4, 4);
@@ -80,4 +81,7 @@ end
     @test has_metadata(x, dim=1)
 end
 
+@testset "docs" begin
+    doctest(Metadata)
+end
 

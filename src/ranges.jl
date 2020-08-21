@@ -3,6 +3,20 @@
     MetaRange(x::AbstractRange, meta)
 
 Type for storing metadata alongside a range.
+
+
+## Examples
+
+```jldoctest
+julia> using Metadata
+
+julia> Metadata.MetaRange(1:1:2, (m1 =1, m2=[1, 2]))
+attach_metadata(1:1:2, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}})
+  • metadata:
+    - m1 = 1
+    - m2 = [1, 2]
+
+```
 """
 struct MetaRange{T,P<:AbstractRange{T},M} <: AbstractRange{T}
     parent::P
@@ -16,6 +30,19 @@ metadata_type(::Type{<:MetaRange{<:Any,<:Any,M}}) where {M} = M
     MetaUnitRange(x::AbstractUnitRange, meta)
 
 Type for storing metadata alongside a anything that is subtype of `AbstractUnitRange`.
+
+## Examples
+
+```jldoctest
+julia> using Metadata
+
+julia> Metadata.MetaUnitRange(1:2, (m1 =1, m2=[1, 2]))
+attach_metadata(1:2, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}})
+  • metadata:
+    - m1 = 1
+    - m2 = [1, 2]
+
+```
 """
 struct MetaUnitRange{T,P<:AbstractRange{T},M} <: AbstractUnitRange{T}
     parent::P
