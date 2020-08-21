@@ -13,9 +13,10 @@ There are two types of interfaces in `Metadata`.
 
 Only two methods are necessary to adopt the `Metadata` interface:
 * Required methods
-  - `metadata(x)`: returns metadata
-  - `metadata_type(::Type{T})`: returns the type of metadata
+  - `Metadata.metadata(x)`: returns the metadata
+  - `Metadata.metadata_type(::Type{T})`: returns the type of the metadata
 * Optional methods:
+  - `Base.parent(x)`: returns the instance attached to the metadata
   - `attach_metadata(x, m)`: returns a type that has the metadata `m` attached to `x`.
   - `MetadataPropagation`:
 
@@ -26,3 +27,5 @@ metadata to all subtypes of `AbstractGraph` via `MetaGraph` then one could defin
 
 ### Types of Metadata
 
+* Optional methods:
+  - `Metadata.known_keys(::Type{T})`:

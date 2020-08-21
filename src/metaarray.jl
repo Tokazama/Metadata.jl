@@ -112,3 +112,10 @@ function Base.similar(x::MetaArray, t::Type, dims::Union{Integer,AbstractUnitRan
     return Metadata.maybe_propagate_metadata(x, similar(parent(x), t, dims))
 end
 
+function Base.showarg(io::IO, x::MetaArray, toplevel)
+    print(io, "attach_metadata(")
+    Base.showarg(io, parent(x), false)
+    print(io, ", ", showarg_metadata(x), ")\n")
+    print(io, Metadata.metadata_summary(x))
+end
+

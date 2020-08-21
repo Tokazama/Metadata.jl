@@ -7,6 +7,7 @@ using ArrayInterface: parent_type, known_first, known_last, known_step
 using Base: @propagate_inbounds, OneTo
 
 export
+    attach_eachmeta,
     attach_metadata,
     copy_metadata,
     has_metadata,
@@ -44,13 +45,15 @@ end
 
 attach_metadata(m) = Fix2(attach_metadata, m)
 
-@defsummary MetaStruct
+@defproperties MetaArray
 
-@defsummary MetaArray
+@defproperties MetaRange
 
-@defsummary MetaRange
+@defproperties MetaUnitRange
 
-@defsummary MetaUnitRange
+@defproperties MetaStruct
+
+@defproperties ElementwiseMetaArray
 
 end # module
 

@@ -22,12 +22,22 @@ struct MetaUnitRange{T,P<:AbstractRange{T},M} <: AbstractUnitRange{T}
     metadata::M
 
     function MetaUnitRange{T,P,M}(p::P, m::M) where {T,P,M}
-        if known_step(p) === oneunit(T)
+        if known_step(P) === oneunit(T)
             return new{T,P,M}(p, m)
         else
             throw(ArgumentError("step must be 1, got $(step(r))"))
         end
     end
+
+    function MetaUnitRange{T}(p::AbstractRange, m) where {T}
+        if eltype(p) <: T
+            return MetaUnitRange{T,typeof(p),typeof(m)}(p, m)
+        else
+            return MetaUnitRange{T}(AbstractUnitRange{T}(p), m)
+        end
+    end
+
+    MetaUnitRange(p::AbstractRange, m) = MetaUnitRange{eltype(p)}(p, m)
 end
 
 ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
@@ -64,6 +74,12 @@ for T in (MetaRange, MetaUnitRange)
            else
                return subr
            end
+        end
+        function Base.show(io::IO, m::MIME"text/plain", x::$T)
+            print(io, "attach_metadata(")
+            print(io, parent(x))
+            print(io, ", ", Metadata.showarg_metadata(x), ")\n")
+            print(io, Metadata.metadata_summary(x))
         end
     end
 end

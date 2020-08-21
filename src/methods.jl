@@ -1,6 +1,6 @@
 # TODO incorporate this stuff in docs
-# * we consider these metadata unless they specifically overload a metadata_type method
-# * the main API can be accomplished by defining `metadata` and `metadata_type` 
+# * we consider NamedTuple, AbstractDict metadata unless they specifically overload
+#   a metadata_type method.
 
 """
     NoMetadata
@@ -14,31 +14,51 @@ Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
 
 """
-    metadata(x[, k::Symbol; dim])
+    metadata(x[, k; dim])
 
 Returns metadata from `x`. If `k` is specified then the metadata value paired to
 `k` is returned. If `dim` is specified then the operation is performed for metadata
 specific to dimension `dim`.
 """
 metadata(x; dim=nothing) = _metadata(x, dim)
+function metadata(x::LinearIndices; dim=nothing)
+    if dim === nothing
+        return no_metadata
+    else
+        return metadata(x.indices[dim])
+    end
+end
+function metadata(x::CartesianIndices; dim=nothing)
+    if dim === nothing
+        return no_metadata
+    else
+        return metadata(x.indices[dim])
+    end
+end
 _metadata(x, ::Val{dim}) where {dim} = _metadata(x, dim)
-_metadata(x, dim) = metadata(axes(x, dim))
-@inline function _metadata(x::X, ::Nothing) where {X}
+function _metadata(x::X, dim) where {X}
+    if parent_type(X) <: X
+        return no_metadata
+    else
+        return metadata(parent(x); dim=dim)
+    end
+end
+function _metadata(x::X, ::Nothing) where {X}
     if parent_type(X) <: X  
         return no_metadata
     else
-        # although `X` doesn't explicitly have metadata, it does have a parent structure
-        # that may have metadata.
+        # although `X` doesn't explicitly have metadata, it does have a parent
+        # structure that may have metadata.
         return metadata(parent(x))
     end
 end
 metadata(x::AbstractDict{Symbol}) = x
 metadata(x::NamedTuple) = x
 
-metadata(x, k::Symbol; dim=nothing) = _metadata(x, k, dim)
-_metadata(x, k::Symbol, ::Val{dim}) where {dim} = _metadata(x, k, dim)
-_metadata(x, k::Symbol, dim) = metadata(axes(x, dim), k)
-@inline function _metadata(x, k::Symbol, ::Nothing)
+metadata(x, k; dim=nothing) = _metadata(x, k, dim)
+_metadata(x, k, ::Val{dim}) where {dim} = _metadata(x, k, dim)
+_metadata(x, k, dim) = metadata(metadata(x, dim), k)
+@inline function _metadata(x, k, ::Nothing)
     if metadata_type(x) <: AbstractDict
         return getindex(metadata(x), k)
     else
@@ -47,52 +67,66 @@ _metadata(x, k::Symbol, dim) = metadata(axes(x, dim), k)
 end
 
 """
-    metadata_type(x[, k::Symbol]) -> Type
+    metadata!(x, k, val[; dim])
 
-Returns the type of the metadata of `x`. If `k` present then attempts to find the
-type of the metadata paired to `k`.
+Set `x`'s metadata paired to `k` to `val`. If `dim` is specified then the metadata
+corresponding to that dimension is mutated.
 """
-metadata_type(::T) where {T} = metadata_type(T)
-metadata_type(::Type{T}) where {T<:AbstractDict} = T
-metadata_type(::Type{T}) where {T<:NamedTuple} = T
-function metadata_type(::Type{A}) where {A<:AbstractArray}
-    if parent_type(A) <: A
-        return NoMetadata
+metadata!(x, k, val; dim=nothing) = _metadata!(x, k, val, dim)
+_metadata!(x, k, val, ::Val{dim}) where {dim} = _metadata!(x, k, val, dim)
+_metadata!(x, k, val, dim) = _metadata!(axes(x, dim), k, val, nothing)
+function _metadata!(x, k, val, ::Nothing)
+    if metadata_type(x) <: AbstractDict
+        return setindex!(metadata(x), val, k)
     else
-        return metadata_type(parent_type(A))
+        return setproperty!(metadata(x), k, val)
     end
 end
 
-metadata_type(x, k::Symbol) = metadata_type(metadata_type(x), k)
-metadata_type(::Type{T}, k::Symbol) where {T} = fieldtype(T, k)
-metadata_type(::Type{T}, k::Symbol) where {T<:AbstractDict} = valtype(T)
-
 """
-    MetadataPropagation(::Type{T}) -> Union{Drop,Copy,Share}
+    metadata_type(x[, dim]) -> Type
 
-When metadata of type `T` is attached to something should the same in memory instance
-be attached or a deep copy of the metadata?
+Returns the type of the metadata of `x`. If `dim` is specified then returns type
+of metadata associated with dimension `dim`.
 """
-abstract type MetadataPropagation end
-
-struct DropMetadata <: MetadataPropagation end
-
-struct CopyMetadata <: MetadataPropagation end
-
-struct ShareMetadata <: MetadataPropagation end
-
-MetadataPropagation(x) = MetadataPropagation(typeof(x))
-MetadataPropagation(::Type{T}) where {T} = MetadataPropagation(metadata_type(T))
-MetadataPropagation(::Type{<:AbstractDict}) = ShareMetadata()
-MetadataPropagation(::Type{<:NamedTuple}) = ShareMetadata()
-MetadataPropagation(::Type{NoMetadata}) = DropMetadata()
-
-function maybe_propagate_metadata(src, dst)
-    return maybe_propagate_metadata(MetadataPropagation(src), src, dst)
+function metadata_type(x; dim=nothing)
+    if dim === nothing
+        return metadata_type(typeof(x))
+    else
+        return metadata_type(x, dim)
+    end
 end
-maybe_propagate_metadata(::DropMetadata, src, dst) = dst
-maybe_propagate_metadata(::ShareMetadata, src, dst) = share_metadata(src, dst)
-maybe_propagate_metadata(::CopyMetadata, src, dst) = copy_metadata(src, dst)
+metadata_type(::Type{T}) where {T<:AbstractDict} = T
+metadata_type(::Type{T}) where {T<:NamedTuple} = T
+function metadata_type(::Type{T}) where {T}
+    if parent_type(T) <: T
+        return NoMetadata
+    else
+        return metadata_type(parent_type(T))
+    end
+end
+metadata_type(x, dim) = metadata_type(typeof(x), dim)
+metadata_type(x, ::Val{dim}) where {dim} = 
+metadata_type(::Type{T}, ::Val{dim}) where {T, dim} = metadata_type(T, dim)
+function metadata_type(::Type{T}, dim) where {T}
+    if parent_type(T) <: T
+        return no_metadata
+    else
+        return metadata_type(parent_type(T), dim)
+    end
+end
+function metadata_type(::Type{CartesianIndices{N,R}}, dim) where {N,R}
+    return metadata_type(R.parameters[dim])
+end
+
+function metadata_type(::Type{LinearIndices{N,R}}, dim) where {N,R}
+    return metadata_type(R.parameters[dim])
+end
+
+
+
+
+# TODO metadata_type(x; dim)
 
 #= TODO
 +(x, y) needs to have a way of combining metadata and incorporating the propagation
@@ -109,23 +143,29 @@ combine_metadata(x, y) = merge(x, y)
 =#
 
 """
-    has_metadata(x) -> Bool
+    has_metadata(x[, k; dim]) -> Bool
 
-Returns true if `x` has metadata.
+Returns true if `x` has metadata. If `k` is specified then checks for the existence
+of a metadata paired to `k`. If `dim` is specified then this checks the metadata at
+the corresponding dimension.
 """
-has_metadata(x) = has_metadata(typeof(x))
-has_metadata(::Type{T}) where {T} = !(metadata_type(T) <: NoMetadata)
+has_metadata(x; dim=nothing) = _has_metadata(x, dim)
+_has_metadata(x, ::Nothing) = !(metadata_type(x) isa NoMetadata)
+_has_metadata(x, ::Val{dim}) where {dim} = has_metadata(x; dim=dim)
+_has_metadata(x, dim) = !(metadata_type(x, dim) isa NoMetadata)
 
-"""
-    has_metadata(x, k) -> Bool
-
-Returns true if `x` has metadata with a mapping for `k`.
-"""
-@inline function has_metadata(x::X, k::Symbol) where {X}
-    if metadata_type(X) <: AbstractDict
-        return haskey(metadata(x), k)
+has_metadata(x, k; dim=nothing) = _has_metadata(x, k, dim)
+_has_metadata(x, k, ::Val{dim}) where {dim} = has_metadata(x, k; dim=dim)
+_has_metadata(x, k, dim) = has_metadata(metadata(x; dim=dim), k)
+@inline function _has_metadata(x, k, ::Nothing)
+    if has_metadata(x)
+        if metadata_type(x) <: AbstractDict
+            return haskey(metadata(x), k)
+        else
+            return hasproperty(metadata(x), k)
+        end
     else
-        return hasproperty(metadata(x), k)
+        return false
     end
 end
 
@@ -159,36 +199,6 @@ Returns `x` without metadata attached.
 drop_metadata(x) = parent(x)
 
 """
-    axis_meta(x)
-
-Returns metadata (i.e. not keys or indices) associated with each axis of the array `x`.
-"""
-axis_meta(x::AbstractArray) = map(metadata, axes(x))
-
-"""
-    axis_metaproperty(x, i, meta_key)
-
-Return the metadata of `x` paired to `meta_key` at axis `i`.
-"""
-axis_metaproperty(x, i, meta_key::Symbol) = _metaproperty(axis_meta(x, i), meta_key)
-
-"""
-    axis_setmeta!(x, meta_key, val)
-
-Set the metadata of `x` paired to `meta_key` at axis `i`.
-"""
-axis_setmeta!(x, i, meta_key::Symbol, val) = _setmeta!(axis_meta(x, i), meta_key, val)
-
-"""
-    has_axis_metaproperty(x, dim, meta_key)
-
-Returns true if `x` has a property in its metadata structure paired to `meta_key` stored
-at the axis corresponding to `dim`.
-"""
-has_axis_metaproperty(x, i, meta_key::Symbol) = _has_metaproperty(axis_meta(x, i), meta_key)
-
-
-"""
     known_keys(::Type{T}) where {T}
 
 Returns the keys of `T` if they are known at compile time. Otherwise, returns nothing.
@@ -203,8 +213,7 @@ known_metadata_keys(::Type{T}) where {T} = known_keys(metadata_type(T))
 
 # This allows dictionaries's keys to be treated like property names
 @inline function metadata_keys(x)
-    if metadata_type(x) <: NoMetadata
-        return propertynames(x)
+    if metadata_type(x) <: NoMetadata return propertynames(x)
     else
         return metadata_keys(metadata(x))
     end
@@ -212,7 +221,35 @@ end
 metadata_keys(x::AbstractDict) = keys(x)
 metadata_keys(x::NamedTuple{L}) where {L} = L
 
-macro metadata_properties(T)
+
+"""
+    MetadataPropagation(::Type{T}) -> Union{Drop,Copy,Share}
+
+When metadata of type `T` is attached to something should the same in memory instance
+be attached or a deep copy of the metadata?
+"""
+abstract type MetadataPropagation end
+
+struct DropMetadata <: MetadataPropagation end
+
+struct CopyMetadata <: MetadataPropagation end
+
+struct ShareMetadata <: MetadataPropagation end
+
+MetadataPropagation(x) = MetadataPropagation(typeof(x))
+MetadataPropagation(::Type{T}) where {T} = MetadataPropagation(metadata_type(T))
+MetadataPropagation(::Type{<:AbstractDict}) = ShareMetadata()
+MetadataPropagation(::Type{<:NamedTuple}) = ShareMetadata()
+MetadataPropagation(::Type{NoMetadata}) = DropMetadata()
+
+function maybe_propagate_metadata(src, dst)
+    return maybe_propagate_metadata(MetadataPropagation(src), src, dst)
+end
+maybe_propagate_metadata(::DropMetadata, src, dst) = dst
+maybe_propagate_metadata(::ShareMetadata, src, dst) = share_metadata(src, dst)
+maybe_propagate_metadata(::CopyMetadata, src, dst) = copy_metadata(src, dst)
+
+macro defproperties(T)
     quote
         @inline function Base.getproperty(x::$T, k::Symbol)
             if hasproperty(parent(x), k)
@@ -229,42 +266,35 @@ macro metadata_properties(T)
                 return Metadata.metadata!(x, k, val)
             end
         end
+
         @inline Base.propertynames(x::$T) = Metadata.metadata_keys(x)
     end
 end
 
-function metadata_summary(x)
-    str = "  • metadata:\n"
+"""
+    metadata_summary(x; left_pad::Int=0, l1=lpad(`•`, 3), l2=lpad('-', 5))
+
+Creates summary readout of metadata for `x`.
+"""
+function metadata_summary(
+    x;
+    left_pad::Int=0,
+    l1=lpad(Char(0x2022), 3),
+    l2=lpad(Char(0x002d), 5),
+)
+
+    str = lpad("$l1 metadata:", left_pad)
     for k in metadata_keys(x)
-        str *= "    - $k : $(metadata(x, k))\n"
+        str *= "\n"
+        str *= lpad("$l2 $k = $(metadata(x, k))", left_pad)
     end
     return str
 end
 
-"""
-    @defsummary(T[, fxn])
-
-Defines the following methods for `T`:
-```julia
-Base.summary(x::T) = summary(parent(x)) * "\n" * Metadata.metadata_summary(x)
-Base.summary(io::IO, x::T) = print(io, summary(x))
-```
-
-If `fxn` is specified then:
-```julia
-Base.summary(x::T) = summary(parent(x)) * "\n" * fxn(x)
-```
-"""
-macro defsummary(T, fxn)
-    esc(quote
-        Base.summary(x::$T) = summary(parent(x)) * "\n" * $fxn(x)
-        Base.summary(io::IO, x::$T) = print(io, summary(x))
-    end)
-end
-
-macro defsummary(T)
-    quote
-        return @defsummary($T, Metadata.metadata_summary)
-    end
-end
+# this is a currently informal way of changing how showarg displays metadata in
+# the argument list. If someone makes a metadata type that's long or complex they
+# may want to overload this.
+#
+# - used within Base.showarg for MetaArray
+showarg_metadata(x) = "::$(metadata_type(x))"
 
