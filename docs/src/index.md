@@ -14,3 +14,11 @@ Metadata.share_metadata
 ```
 
 ## Internal
+```@docs
+Metadata.NoMetadata
+Metadata.MetadataPropagation
+Metadata.metadata_summary
+Metadata.MetaArray
+Metadata.MetaRange
+Metadata.MetaUnitRange
+```

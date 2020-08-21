@@ -4,7 +4,7 @@ using Metadata
 @testset "MetaArray" begin
     x = ones(4, 4);
     meta = (m1 =1, m2=[1, 2]);
-    mx = attach_metadata(x, meta);
+    mx = attach_metadata(meta)(x);
     @test metadata(mx) == meta
     @test has_metadata(mx)
     @test has_metadata(mx, :m1)
@@ -29,6 +29,10 @@ using Metadata
     @test mx[1:2] == [1, 1]
     @test metadata(mx[1:2]) == metadata(mx)
     @test metadata_type(mx) <: AbstractDict
+
+    @test IndexStyle(typeof(mx)) isa IndexLinear
+    @test size(mx) == (4, 4)
+    @test axes(mx) == (1:4, 1:4)
 end
 
 @testset "MetaRange" begin
@@ -75,4 +79,5 @@ end
     @test metadata(x, dim=1) == meta
     @test has_metadata(x, dim=1)
 end
+
 

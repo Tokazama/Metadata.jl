@@ -43,7 +43,7 @@ function attach_metadata(x::AbstractRange, m)
     end
 end
 
-attach_metadata(m) = Fix2(attach_metadata, m)
+attach_metadata(m) = Base.Fix2(attach_metadata, m)
 
 @defproperties MetaArray
 
