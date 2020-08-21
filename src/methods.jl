@@ -1,6 +1,3 @@
-# TODO incorporate this stuff in docs
-# * we consider NamedTuple, AbstractDict metadata unless they specifically overload
-#   a metadata_type method.
 
 """
     NoMetadata
@@ -223,17 +220,33 @@ metadata_keys(x::NamedTuple{L}) where {L} = L
 
 
 """
-    MetadataPropagation(::Type{T}) -> Union{Drop,Copy,Share}
+    MetadataPropagation(::Type{T})
 
-When metadata of type `T` is attached to something should the same in memory instance
-be attached or a deep copy of the metadata?
+Returns type informing how to propagate metadata of type `T`.
+See [`DropMetadata`](@ref), [`CopyMetadata`](@ref), [`ShareMetadata`](@ref).
 """
 abstract type MetadataPropagation end
 
+"""
+    DropMetadata
+
+Informs operations that may propagate metadata to insead drop it.
+"""
 struct DropMetadata <: MetadataPropagation end
 
+"""
+    CopyMetadata
+
+Informs operations that may propagate metadata to attach a copy to any new instance created.
+"""
 struct CopyMetadata <: MetadataPropagation end
 
+"""
+    ShareMetadata
+
+Informs operations that may propagate metadata to attach a the same metadata to
+any new instance created.
+"""
 struct ShareMetadata <: MetadataPropagation end
 
 MetadataPropagation(x) = MetadataPropagation(typeof(x))

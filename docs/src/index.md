@@ -21,4 +21,8 @@ Metadata.metadata_summary
 Metadata.MetaArray
 Metadata.MetaRange
 Metadata.MetaUnitRange
+Metadata.MetadataPropagation
+Metadata.CopyMetadata
+Metadata.DropMetadata
+Metadata.ShareMetadata
 ```
