@@ -11,7 +11,7 @@ function _construct_meta(meta, kwargs::NamedTuple)
     if isempty(kwargs)
         return meta
     else
-        error("Cannot assign key word arguments to metadata of type $T")
+        error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
     end
 end
 

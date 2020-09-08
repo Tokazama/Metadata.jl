@@ -25,6 +25,7 @@ include("metaarray.jl")
 include("ranges.jl")
 include("metastruct.jl")
 include("elementwise.jl")
+include("io.jl")
 
 """
     attach_metadata(x, metadata)
@@ -58,6 +59,8 @@ attach_metadata(m) = Base.Fix2(attach_metadata, m)
 @defproperties MetaStruct
 
 @defproperties ElementwiseMetaArray
+
+@defproperties MetaIO
 
 end # module
 

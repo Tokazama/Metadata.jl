@@ -9,7 +9,6 @@ struct NoMetadata end
 const no_metadata = NoMetadata()
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
-
 """
     metadata(x[, k; dim])
 
