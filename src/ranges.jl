@@ -95,12 +95,7 @@ for T in (MetaRange, MetaUnitRange)
         Base.length(r::$T) = length(parent(r))
 
         Base.@propagate_inbounds function Base.getindex(r::$T, inds)
-           subr = getindex(parent(r), inds)
-           if subr isa AbstractRange
-               return propagate_metadata(r, subr)
-           else
-               return subr
-           end
+            return propagate_metadata(r, getindex(parent(r), inds))
         end
         function Base.show(io::IO, m::MIME"text/plain", x::$T)
             print(io, "attach_metadata(")

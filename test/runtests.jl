@@ -87,6 +87,13 @@ end
     @test mx[1] == 1
     @test mx[1:2] == [1, 2]
     @test metadata(mx[1:2]) == metadata(mx)
+    @test first(x) == first(mx)
+    @test step(x) == step(mx)
+    @test last(x) == last(mx)
+    @test length(mx) == length(x)
+    @test ArrayInterface.known_first(mx) === ArrayInterface.known_first(x)
+    @test ArrayInterface.known_last(mx) === ArrayInterface.known_last(x)
+    @test mx[1:2:10] == x[1:2:10]
 end
 
 @testset "LinearIndices/CartesianIndices" begin
