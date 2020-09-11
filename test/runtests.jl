@@ -46,6 +46,7 @@ include("metaid.jl")
 
     meta = Dict(:m1 => 1, :m2 => [1,2])
     mx = attach_metadata(x, meta);
+    @test parent_type(typeof(mx)) <: typeof(x)
     @test metadata(mx) == meta
     @test has_metadata(mx)
     @test has_metadata(mx, :m1)
@@ -67,12 +68,14 @@ end
     x = 1:1:10
     meta = (m1 =1, m2=[1, 2])
     mx = attach_metadata(x, meta)
+    @test parent_type(typeof(mx)) <: typeof(x)
     @test metadata(mx) == meta
     @test metadata(mx, :m1) == 1
     @test Metadata.metadata_keys(mx) == (:m1, :m2)
     @test mx[1] == 1
     @test mx[1:2] == [1, 2]
     @test metadata(mx[1:2]) == metadata(mx)
+    @test mx[:] == x[:]
 end
 
 @testset "MetaUnitRange" begin
@@ -94,6 +97,7 @@ end
     @test ArrayInterface.known_first(mx) === ArrayInterface.known_first(x)
     @test ArrayInterface.known_last(mx) === ArrayInterface.known_last(x)
     @test mx[1:2:10] == x[1:2:10]
+    @test mx[:] == x[:]
 end
 
 @testset "LinearIndices/CartesianIndices" begin
