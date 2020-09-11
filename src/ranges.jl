@@ -52,7 +52,7 @@ struct MetaUnitRange{T,P<:AbstractRange{T},M} <: AbstractUnitRange{T}
         if known_step(P) === oneunit(T)
             return new{T,P,M}(p, m)
         else
-            throw(ArgumentError("step must be 1, got $(step(r))"))
+            throw(ArgumentError("step must be 1, got $(step(p))"))
         end
     end
 

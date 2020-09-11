@@ -96,8 +96,13 @@ end
     @test length(mx) == length(x)
     @test ArrayInterface.known_first(mx) === ArrayInterface.known_first(x)
     @test ArrayInterface.known_last(mx) === ArrayInterface.known_last(x)
+    @test ArrayInterface.known_step(mx) === ArrayInterface.known_step(x)
     @test mx[1:2:10] == x[1:2:10]
     @test mx[:] == x[:]
+    @test eltype(Metadata.MetaUnitRange{UInt}(1:10, nothing)) <: UInt
+    @test_throws ArgumentError Metadata.MetaUnitRange(1:3:10, nothing)
+    @test Metadata.drop_metadata(mx) === x
+    @test Metadata.copy_metadata(mx, x) == mx
 end
 
 @testset "LinearIndices/CartesianIndices" begin
@@ -164,4 +169,3 @@ end
 @testset "docs" begin
     doctest(Metadata)
 end
-
