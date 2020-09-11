@@ -2,6 +2,9 @@ using Test
 using Metadata
 using Documenter
 
+
+include("metaid.jl")
+
 @testset "MetaArray" begin
     x = ones(4, 4);
     meta = (m1 =1, m2=[1, 2]);
