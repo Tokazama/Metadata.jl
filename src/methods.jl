@@ -1,12 +1,41 @@
 
+struct MetaStruct{P,M}
+    parent::P
+    metadata::M
+end
+
+metadata(m::MetaStruct) = getfield(m, :metadata)
+
+Base.parent(m::MetaStruct) = getfield(m, :parent)
+
+ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
+
+metadata_type(::Type{MetaStruct{P,M}}) where {P,M} = M
+
+function unsafe_attach_eachmeta(x::AbstractVector, m::NamedTuple{L}, i::Int) where {L}
+    return MetaStruct(
+        x,
+        NamedTuple{L}(ntuple(i -> @inbounds(m[L[i]][index]), Val(length(L))))
+    )
+end
+
+# TODO `eachindex` should change to `ArrayInterface.indices`
+function attach_eachmeta(x::AbstractVector, m::NamedTuple)
+    return map(i -> unsafe_attach_eachmeta(@inbounds(x[i]), m, i), eachindex(p, m...))
+end
+
 """
     NoMetadata
 
 Internal type for the `Metadata` package that indicates the absence of any metadata.
 _DO NOT_ store metadata with the value `NoMetadata()`.
 """
-struct NoMetadata end
-const no_metadata = NoMetadata()
+struct NoMetadata{Nothing} end
+
+const no_metadata = NoMetadata{Nothing}()
+
+NoMetadata() = no_metadata
+
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
 """
@@ -119,24 +148,7 @@ function metadata_type(::Type{LinearIndices{N,R}}, dim) where {N,R}
     return metadata_type(R.parameters[dim])
 end
 
-
-
-
 # TODO metadata_type(x; dim)
-
-#= TODO
-+(x, y) needs to have a way of combining metadata and incorporating the propagation
-info for each type
-
-function combine_metadata(x::AbstractUnitRange, y::AbstractUnitRange)
-    return combine_metadata(metadata(x), metadata(y))
-end
-combine_metadata(x, y)
-combine_metadata(::Nothing, ::Nothing) = nothing
-combine_metadata(::Nothing, y) = y
-combine_metadata(x, ::Nothing) = x
-combine_metadata(x, y) = merge(x, y)
-=#
 
 """
     has_metadata(x[, k; dim]) -> Bool
@@ -164,6 +176,14 @@ _has_metadata(x, k, dim) = has_metadata(metadata(x; dim=dim), k)
         return false
     end
 end
+
+"""
+    attach_metadata(x, metadata)
+
+Generic method for attaching metadata to `x`.
+"""
+attach_metadata(x, m::METADATA_TYPES=Main) = MetaStruct(x, m)
+
 
 """
     share_metadata(src, dst) -> attach_metadata(dst, metadata(src))
@@ -254,12 +274,56 @@ MetadataPropagation(::Type{<:AbstractDict}) = ShareMetadata()
 MetadataPropagation(::Type{<:NamedTuple}) = ShareMetadata()
 MetadataPropagation(::Type{NoMetadata}) = DropMetadata()
 
-function maybe_propagate_metadata(src, dst)
-    return maybe_propagate_metadata(MetadataPropagation(src), src, dst)
+function propagate_metadata(src, dst)
+    return propagate_metadata(MetadataPropagation(src), src, dst)
 end
-maybe_propagate_metadata(::DropMetadata, src, dst) = dst
-maybe_propagate_metadata(::ShareMetadata, src, dst) = share_metadata(src, dst)
-maybe_propagate_metadata(::CopyMetadata, src, dst) = copy_metadata(src, dst)
+propagate_metadata(::DropMetadata, src, dst) = dst
+propagate_metadata(::ShareMetadata, src, dst) = share_metadata(src, dst)
+propagate_metadata(::CopyMetadata, src, dst) = copy_metadata(src, dst)
+
+#= TODO
++(x, y) needs to have a way of combining metadata and incorporating the propagation
+info for each type
+
+function combine_metadata(x::AbstractUnitRange, y::AbstractUnitRange)
+    return combine_metadata(metadata(x), metadata(y))
+end
+combine_metadata(x, y)
+combine_metadata(::Nothing, ::Nothing) = nothing
+combine_metadata(::Nothing, y) = y
+combine_metadata(x, ::Nothing) = x
+combine_metadata(x, y) = merge(x, y)
+=#
+
+function combine_metadata(x, y, dst)
+    return _combine_meta(MetadataPropagation(x), MetadataPropagation(y), x, y)
+end
+
+function _combine_meta(px::DropMetadata, py::MetadataPropagation, x, y, dst)
+    return propagate_metadata(py, y, dst)
+end
+
+function _combine_meta(px::MetadataPropagation, py::DropMetadata, x, y, dst)
+    return propagate_metadata(px, x, dst)
+end
+
+function _combine_meta(px::CopyMetadata, py::CopyMetadata, x, y, dst)
+    return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
+end
+
+function _combine_meta(px::ShareMetadata, py::CopyMetadata, x, y, dst)
+    return attach_metadata(append!(deepcopy(metadata(y)), metadata(x)), dst)
+end
+
+function _combine_meta(px::CopyMetadata, py::ShareMetadata, x, y, dst)
+    return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
+end
+
+# TODO need to consider what should happen here because non mutating functions
+# will mutate metadata if both combine and share
+function _combine_meta(px::ShareMetadata, py::ShareMetadata, x, y, dst)
+    return attach_metadata(append!(metadata(x), metadata(y)), dst)
+end
 
 macro defproperties(T)
     quote
@@ -309,4 +373,38 @@ end
 #
 # - used within Base.showarg for MetaArray
 showarg_metadata(x) = "::$(metadata_type(x))"
+
+macro defpairs(f, T)
+    esc(quote
+
+        function $f(x::$T, y)
+            return Metadata.propagate_metadata(x, $f(parent(x), y))
+        end
+
+        function $f(x, y::$T)
+            return Metadata.propagate_metadata(y, $f(x, parent(y)))
+        end
+
+        function $f(x::$T, y::$T)
+            return Metadata.combine_metadata(x, y, $f(parent(x), parent(y)))
+        end
+    end)
+end
+
+function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
+    for (k, v) in kwargs
+        meta[k] = v
+    end
+    return meta
+end
+
+_construct_meta(m::Module, kwargs::NamedTuple) = _construct_meta(MetaID(m), kwargs)
+
+function _construct_meta(meta, kwargs::NamedTuple)
+    if isempty(kwargs)
+        return meta
+    else
+        error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
+    end
+end
 

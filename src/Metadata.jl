@@ -14,41 +14,35 @@ export
     attach_eachmeta,
     attach_metadata,
     copy_metadata,
+    elementwise,
     has_metadata,
     metadata,
+    metadata!,
     metadata_type,
     share_metadata
 
-include("utils.jl")
+const METADATA_TYPES = Union{Module,<:AbstractDict{Symbol,Any},<:NamedTuple}
+
+include("metaid.jl")
 include("methods.jl")
 include("metaarray.jl")
 include("ranges.jl")
-include("metastruct.jl")
 include("elementwise.jl")
 include("io.jl")
 
-"""
-    attach_metadata(x, metadata)
 
-Generic method for attaching metadata to `x`.
-"""
-function attach_metadata(x::AbstractArray, m; elementwise::Bool=false)
-    if elementwise
-        return ElementwiseMetaArray(x, m)
-    else
-        return MetaArray(x, m)
-    end
-end
+attach_metadata(x::AbstractArray, m::METADATA_TYPES=Main) = MetaArray(x, _maybe_metaid(m))
 
-function attach_metadata(x::AbstractRange, m)
+function attach_metadata(x::AbstractRange, m::METADATA_TYPES=Main)
     if known_step(x) === oneunit(eltype(x))
-        return MetaUnitRange(x, m)
+        return MetaUnitRange(x, _maybe_metaid(m))
     else
-        return MetaRange(x, m)
+        return MetaRange(x, _maybe_metaid(m))
     end
 end
+attach_metadata(x::IO, m::METADATA_TYPES=Main) = MetaIO(x, _maybe_metaid(m))
 
-attach_metadata(m) = Base.Fix2(attach_metadata, m)
+attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, _maybe_metaid(m))
 
 @defproperties MetaArray
 

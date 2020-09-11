@@ -97,7 +97,7 @@ for T in (MetaRange, MetaUnitRange)
         Base.@propagate_inbounds function Base.getindex(r::$T, inds)
            subr = getindex(parent(r), inds)
            if subr isa AbstractRange
-               return maybe_propagate_metadata(r, subr)
+               return propagate_metadata(r, subr)
            else
                return subr
            end
@@ -115,10 +115,10 @@ end
 ### Fixes ambiguities
 ###
 @propagate_inbounds function Base.getindex(r::MetaUnitRange, s::StepRange{T}) where T<:Integer
-    return maybe_propagate_metadata(r, getindex(parent(r), s))
+    return propagate_metadata(r, getindex(parent(r), s))
 end
 @propagate_inbounds function Base.getindex(r::MetaUnitRange, s::AbstractUnitRange{T}) where {T<:Integer}
-    return maybe_propagate_metadata(r, getindex(parent(r), s))
+    return propagate_metadata(r, getindex(parent(r), s))
 end
 Base.getindex(r::MetaRange, ::Colon) = copy(r)
 Base.getindex(r::MetaUnitRange, ::Colon) = copy(r)

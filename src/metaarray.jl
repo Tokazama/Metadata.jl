@@ -41,11 +41,11 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
         end
     end
 
-    function MetaArray{T,N,M,A}(a::AbstractArray; metadata=nothing, kwargs...) where {T,N,M,A}
+    function MetaArray{T,N,M,A}(a::AbstractArray; metadata=Main, kwargs...) where {T,N,M,A}
         return MetaArray{T,N,M,A}(a, _construct_meta(metadata, values(kwargs)))
     end
 
-    function MetaArray{T,N,M,A}(args...; metadata=nothing, kwargs...) where {T,N,M,A}
+    function MetaArray{T,N,M,A}(args...; metadata=Main, kwargs...) where {T,N,M,A}
         return MetaArray{T,N,M,A}(A(args...); metadata=metadata, kwargs...)
     end
 
@@ -65,11 +65,11 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     ###
     MetaArray{T,N}(a::AbstractArray, m::M) where {T,N,M} = MetaArray{T,N,M}(a, m)
 
-    function MetaArray{T,N}(a::AbstractArray; metadata=nothing, kwargs...) where {T,N}
+    function MetaArray{T,N}(a::AbstractArray; metadata=Main, kwargs...) where {T,N}
         return MetaArray{T,N}(a, _construct_meta(metadata, values(kwargs)))
     end
 
-    function MetaArray{T,N}(args...; metadata=nothing, kwargs...) where {T,N}
+    function MetaArray{T,N}(args...; metadata=Main, kwargs...) where {T,N}
         return MetaArray{T,N}(Array{T,N}(args...); metadata=metadata, kwargs...)
     end
 
@@ -77,13 +77,13 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     ###
     ### MetArray{T}
     ###
-    function MetaArray{T}(args...; metadata=nothing, kwargs...) where {T}
+    function MetaArray{T}(args...; metadata=Main, kwargs...) where {T}
         return MetaArray{T}(Array{T}(args...); metadata=metadata, kwargs...)
     end
 
     MetaArray{T}(a::AbstractArray, m::M) where {T,M} = MetaArray{T,ndims(a)}(a, m)
 
-    function MetaArray{T}(a::AbstractArray; metadata=nothing, kwargs...) where {T}
+    function MetaArray{T}(a::AbstractArray; metadata=Main, kwargs...) where {T}
         return MetaArray{T,ndims(a)}(a; metadata=metadata, kwargs...)
     end
 
@@ -92,7 +92,7 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     ###
     MetaArray(v::AbstractArray{T,N}, m::M) where {T,N,M} = new{T,N,M,typeof(v)}(v, m)
 
-    function MetaArray(a::AbstractArray; metadata=nothing, kwargs...)
+    function MetaArray(a::AbstractArray; metadata=Main, kwargs...)
         return MetaArray{eltype(a)}(a; metadata=metadata, kwargs...)
     end
 end
@@ -115,7 +115,7 @@ ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
 end
 
 _getindex(A::MetaArray{T}, val::T) where {T} = val
-_getindex(A::MetaArray{T}, val) where {T} = maybe_propagate_metadata(A, val)
+_getindex(A::MetaArray{T}, val) where {T} = propagate_metadata(A, val)
 
 @propagate_inbounds function Base.setindex!(A::MetaArray, val, args...)
     return setindex!(parent(A), val, args...)
@@ -126,9 +126,9 @@ Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
 #function Base.show(io::IO, ::MIME"text/plain", A::MetaArray) end
 
 function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
-    if isempty(X) && (get(io, :compact, false) || X isa Vector)
-        return show(io, X)
-    end
+    #if isempty(X) && (get(io, :compact, false) || X isa AbstractVector)
+    #    return show(io, X)
+    #end
     # 0) show summary before setting :compact
     summary(io, X)
     isempty(X) && return
@@ -143,7 +143,7 @@ function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
         io = IOContext(io, :limit => false)
     end
 
-    if get(io, :limit, false) && Base.displaysize(io)[1]-4 <= 0
+    if get(io, :limit, false) && Base.displaysize(io)[1] - 4 <= 0
         return print(io, " …")
     else
         println(io)
@@ -173,15 +173,15 @@ function Base.similar(
     dims::Tuple{Union{Integer,OneTo},Vararg{Union{Integer,OneTo}}}
 )
 
-    return Metadata.maybe_propagate_metadata(x, similar(parent(x), t, dims))
+    return Metadata.propagate_metadata(x, similar(parent(x), t, dims))
 end
 
 function Base.similar(x::MetaArray, t::Type=eltype(x), dims::Tuple{Vararg{Int64}}=size(x))
-    return Metadata.maybe_propagate_metadata(A, similar(parent(x), t, dims))
+    return Metadata.propagate_metadata(A, similar(parent(x), t, dims))
 end
 
 function Base.similar(x::MetaArray, t::Type, dims::Union{Integer,AbstractUnitRange}...)
-    return Metadata.maybe_propagate_metadata(x, similar(parent(x), t, dims))
+    return Metadata.propagate_metadata(x, similar(parent(x), t, dims))
 end
 
 function Base.showarg(io::IO, x::MetaArray, toplevel)
