@@ -30,20 +30,6 @@ include("ranges.jl")
 include("elementwise.jl")
 include("io.jl")
 
-
-attach_metadata(x::AbstractArray, m::METADATA_TYPES=Main) = MetaArray(x, _maybe_metaid(m))
-
-function attach_metadata(x::AbstractRange, m::METADATA_TYPES=Main)
-    if known_step(x) === oneunit(eltype(x))
-        return MetaUnitRange(x, _maybe_metaid(m))
-    else
-        return MetaRange(x, _maybe_metaid(m))
-    end
-end
-attach_metadata(x::IO, m::METADATA_TYPES=Main) = MetaIO(x, _maybe_metaid(m))
-
-attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, _maybe_metaid(m))
-
 @defproperties MetaArray
 
 @defproperties MetaRange

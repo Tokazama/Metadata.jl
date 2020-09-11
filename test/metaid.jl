@@ -21,6 +21,7 @@
 
     @test length(m) == 2
     @test length(metadata(Main)) == 1
+    @test metadata_type(Main) <: Metadata.GlobalMetadata
     @test !isempty(m)
     empty!(m)
     @test isempty(m)

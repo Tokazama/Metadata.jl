@@ -1,29 +1,4 @@
 
-struct MetaStruct{P,M}
-    parent::P
-    metadata::M
-end
-
-metadata(m::MetaStruct) = getfield(m, :metadata)
-
-Base.parent(m::MetaStruct) = getfield(m, :parent)
-
-ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
-
-metadata_type(::Type{MetaStruct{P,M}}) where {P,M} = M
-
-function unsafe_attach_eachmeta(x::AbstractVector, m::NamedTuple{L}, i::Int) where {L}
-    return MetaStruct(
-        x,
-        NamedTuple{L}(ntuple(i -> @inbounds(m[L[i]][index]), Val(length(L))))
-    )
-end
-
-# TODO `eachindex` should change to `ArrayInterface.indices`
-function attach_eachmeta(x::AbstractVector, m::NamedTuple)
-    return map(i -> unsafe_attach_eachmeta(@inbounds(x[i]), m, i), eachindex(p, m...))
-end
-
 """
     NoMetadata
 
@@ -79,6 +54,19 @@ function _metadata(x::X, ::Nothing) where {X}
 end
 metadata(x::AbstractDict{Symbol}) = x
 metadata(x::NamedTuple) = x
+metadata(m::MetaStruct) = getfield(m, :metadata)
+function metadata(m::Module)
+    if isdefined(m, GLOBAL_METADATA)
+        return getfield(m, GLOBAL_METADATA)::GlobalMetadata
+    else
+        return GlobalMetadata(m)
+    end
+end
+function metadata(x::MetaID)
+    # This is known to be inbounds because MetaID cannot be constructed without also
+    # assigning a dictionary to `objectid(x)` in the parent module's global metadata dict
+    return @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
+end
 
 metadata(x, k; dim=nothing) = _metadata(x, k, dim)
 _metadata(x, k, ::Val{dim}) where {dim} = _metadata(x, k, dim)
@@ -147,6 +135,9 @@ end
 function metadata_type(::Type{LinearIndices{N,R}}, dim) where {N,R}
     return metadata_type(R.parameters[dim])
 end
+metadata_type(::Type{T}) where {P,M,T<:MetaStruct{P,M}} = M
+metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
+metadata_type(::Type{T}) where {T<:MetaID} = valtype(GlobalMetadata)
 
 # TODO metadata_type(x; dim)
 
@@ -183,6 +174,17 @@ end
 Generic method for attaching metadata to `x`.
 """
 attach_metadata(x, m::METADATA_TYPES=Main) = MetaStruct(x, m)
+attach_metadata(x::AbstractArray, m::METADATA_TYPES=Main) = MetaArray(x, _maybe_metaid(m))
+function attach_metadata(x::AbstractRange, m::METADATA_TYPES=Main)
+    if known_step(x) === oneunit(eltype(x))
+        return MetaUnitRange(x, _maybe_metaid(m))
+    else
+        return MetaRange(x, _maybe_metaid(m))
+    end
+end
+attach_metadata(x::IO, m::METADATA_TYPES=Main) = MetaIO(x, _maybe_metaid(m))
+
+attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, _maybe_metaid(m))
 
 
 """
@@ -296,7 +298,7 @@ combine_metadata(x, y) = merge(x, y)
 =#
 
 function combine_metadata(x, y, dst)
-    return _combine_meta(MetadataPropagation(x), MetadataPropagation(y), x, y)
+    return _combine_meta(MetadataPropagation(x), MetadataPropagation(y), x, y, dst)
 end
 
 function _combine_meta(px::DropMetadata, py::MetadataPropagation, x, y, dst)
@@ -407,4 +409,3 @@ function _construct_meta(meta, kwargs::NamedTuple)
         error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
     end
 end
-

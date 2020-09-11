@@ -1,4 +1,33 @@
 
+"""
+    MetaStruct(p, m)
+
+Binds a parent instance (`p`) to some metadata (`m`). `MetaStruct` is the generic type
+constructed when `attach_metadata(p, m)` is called.
+
+See also: [`attach_metadata`](@ref), [`attach_eachmeta`](@ref)
+"""
+struct MetaStruct{P,M}
+    parent::P
+    metadata::M
+end
+
+Base.parent(m::MetaStruct) = getfield(m, :parent)
+
+ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
+
+function unsafe_attach_eachmeta(x::AbstractVector, m::NamedTuple{L}, i::Int) where {L}
+    return MetaStruct(
+        x,
+        NamedTuple{L}(ntuple(i -> @inbounds(m[L[i]][index]), Val(length(L))))
+    )
+end
+
+# TODO `eachindex` should change to `ArrayInterface.indices`
+function attach_eachmeta(x::AbstractVector, m::NamedTuple)
+    return map(i -> unsafe_attach_eachmeta(@inbounds(x[i]), m, i), eachindex(p, m...))
+end
+
 const modules = Module[]
 const MDict = Dict{Symbol,Any}
 const GLOBAL_METADATA    = gensym(:metadata)
@@ -58,23 +87,6 @@ suppressed_fields(x::MetaID) = getfield(x, :suppressed_fields)
 supressed_fields!(x::MetaID, s::Symbol) = push!(suppressed_fields(x), s)
 supressed_fields!(x::MetaID, s::AbstractArray{Symbol}) = append!(suppressed_fields(x), s)
 
-function metadata(m::Module)
-    if isdefined(m, GLOBAL_METADATA)
-        return getfield(m, GLOBAL_METADATA)::GlobalMetadata
-    else
-        return GlobalMetadata(m)
-    end
-end
-
-function metadata(x::MetaID)
-    # This is known to be inbounds because MetaID cannot be constructed without also
-    # assigning a dictionary to `objectid(x)` in the parent module's global metadata dict
-    return @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
-end
-
-metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
-metadata_type(::Type{T}) where {T<:MetaID} = valtype(GlobalMetadata)
-
 Base.setproperty!(x::MetaID, k::Symbol, @nospecialize(val)) = setindex!(metadata(x), val, k)
 Base.getproperty(x::MetaID, k::Symbol) = getindex(metadata(x), k)
 Base.propertynames(m::MetaID) = Tuple(keys(m))
@@ -112,7 +124,6 @@ Base.getkey(m::MetaID, k::Symbol, @nospecialize(default)) = getkey(metadata(m), 
 
 Base.keys(m::MetaID) = keys(metadata(m))
 Base.keys(m::GlobalMetadata) = keys(data(m))
-
 
 Base.iterate(m::GlobalMetadata) = iterate(data(m))
 Base.iterate(m::GlobalMetadata, state) = iterate(data(m), state)
