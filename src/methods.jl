@@ -333,7 +333,7 @@ macro defproperties(T)
             if hasproperty(parent(x), k)
                 return getproperty(parent(x), k)
             else
-                return Metadata.metadata!(x, k, val)
+                return Metadata.metadata(x, k)
             end
         end
 
@@ -394,7 +394,7 @@ macro defpairs(f, T)
 end
 
 function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
-    for (k, v) in kwargs
+    for (k, v) in pairs(kwargs)
         meta[k] = v
     end
     return meta

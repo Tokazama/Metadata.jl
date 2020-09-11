@@ -10,16 +10,24 @@ using Metadata: MetaArray
 include("metaid.jl")
 
 @testset "MetaArray" begin
-    @testset "constructors" begin
-        x = ones(4, 4);
-        xview = view(x, :, :)
-        meta = (m1 =1, m2=[1, 2]);
-        mx = attach_metadata(meta)(x);
-        mxview = attach_metadata(meta)(xview)
-        @test parent_type(mx) <: typeof(x)
-        @test parent_type(mxview) <: typeof(xview)
-        @test typeof(mx)(xview, meta) isa typeof(mx)
-    end
+    x = ones(4, 4);
+    xview = view(x, :, :)
+    meta = (m1 =1, m2=[1, 2]);
+    mx = attach_metadata(meta)(x);
+    mxview = attach_metadata(meta)(xview)
+    @test parent_type(mx) <: typeof(x)
+    @test parent_type(mxview) <: typeof(xview)
+    @test typeof(mx)(xview, meta) isa typeof(mx)
+
+    mx = attach_metadata(x)
+    mvx = typeof(mx)(xview; m1 = 1, m2 = [1, 2])
+    @test mvx isa typeof(mx)
+    @test mvx.m1 == 1
+    @test mvx.m2 == [1, 2]
+
+    m = Metadata.MetaArray{Int}(undef, (2,2))
+    m[:] = 1:4
+    @test m == [1 3; 2 4]
 
     x = ones(4, 4);
     meta = (m1 =1, m2=[1, 2]);
@@ -137,6 +145,7 @@ end
     @test eof(mio)
     close(mio)
     @test !isopen(mio)
+    @test metadata(mio) isa Metadata.MetaID
 
     # Base.stat(@nospecialize(s::MetaIO)) = stat(parent(s))
 end
