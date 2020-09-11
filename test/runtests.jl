@@ -109,26 +109,36 @@ end
     @test !isreadonly(mio)
     @test isreadable(mio)
     @test iswritable(mio)
+    @test isopen(mio)
+    @test !ismarked(mio)
 
     write(mio, 1)
     @test position(mio) == 8
     seek(mio, 0)
     @test read(mio, Int) == 1
+    seek(mio, 0)
+    write(mio, [1, 2])
+    write(mio, view([1 , 2], :))
+    write(mio, [1,2]')
+    seek(mio, 0)
+    @test read!(mio, Vector{Int}(undef, 2)) == [1, 2]
+    skip(mio, 8)
+    @test position(mio) == 24
+    mark(mio)
+    @test ismarked(mio)
+    seek(mio, 0)
+    @test reset(mio) == 24
+    @test position(mio) == 24
+    mark(mio)
+    @test ismarked(mio)
+    unmark(mio)
+    @test !ismarked(mio)
+    seekend(mio)
+    @test eof(mio)
+    close(mio)
+    @test !isopen(mio)
 
-    #=
-Base.seek(@nospecialize(s::MetaIO), n::Integer) = seek(parent(s), n)
-Base.skip(@nospecialize(s::MetaIO), n::Integer) = skip(parent(s), n)
-Base.eof(@nospecialize(s::MetaIO)) = eof(parent(s))
-Base.stat(@nospecialize(s::MetaIO)) = stat(parent(s))
-Base.close(@nospecialize(s::MetaIO)) = close(parent(s))
-Base.isopen(@nospecialize(s::MetaIO)) = isopen(parent(s))
-Base.ismarked(@nospecialize(s::MetaIO)) = ismarked(parent(s))
-Base.mark(@nospecialize(s::MetaIO)) = mark(parent(s))
-Base.unmark(@nospecialize(s::MetaIO)) = unmark(parent(s))
-Base.reset(@nospecialize(s::MetaIO)) = reset(parent(s))
-Base.seekend(@nospecialize(s::MetaIO)) = seekend(parent(s))
-=#
-
+    # Base.stat(@nospecialize(s::MetaIO)) = stat(parent(s))
 end
 
 @testset "docs" begin

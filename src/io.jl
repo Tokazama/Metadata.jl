@@ -35,8 +35,14 @@ Base.seekend(@nospecialize(s::MetaIO)) = seekend(parent(s))
 Base.read(@nospecialize(s::MetaIO), n::Int) = read(parent(s), n)
 Base.read!(@nospecialize(s::MetaIO), x) = read!(parent(s), x)
 Base.read!(@nospecialize(s::MetaIO), x::Ref{T}) where {T} = read!(parent(s), x)
+Base.read!(@nospecialize(s::MetaIO), x::AbstractArray) = read!(parent(s), x)
 
 Base.write(@nospecialize(s::MetaIO), x) = write(parent(s), x)
+Base.write(@nospecialize(s::MetaIO), x::Array) = write(parent(s), x)
+Base.write(@nospecialize(s::MetaIO), x::AbstractArray) = write(parent(s), x)
+function Base.write(@nospecialize(s::MetaIO), x::SubArray{T,N,P,I,L} where L where I where P<:Array) where {T, N}
+    return write(parent(s), x)
+end
 function Base.write(s::MetaIO, val::Union{Float16, Float32, Float64, Int128, Int16, Int32, Int64, UInt128, UInt16, UInt32, UInt64})
     return write(parent(s), val)
 end
