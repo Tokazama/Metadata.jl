@@ -5,7 +5,6 @@ struct MetaIO{T<:IO,M} <: IO
 end
 
 Base.parent(x::MetaIO) = getfield(x, :parent)
-metadata(x::MetaIO) = getfield(x, :metadata)
 
 @_define_single_function_no_prop(Base, isreadonly, MetaIO)
 @_define_single_function_no_prop(Base, isreadable, MetaIO)

@@ -5,11 +5,9 @@
 Internal type for the `Metadata` package that indicates the absence of any metadata.
 _DO NOT_ store metadata with the value `NoMetadata()`.
 """
-struct NoMetadata{Nothing} end
+struct NoMetadata end
 
-const no_metadata = NoMetadata{Nothing}()
-
-NoMetadata() = no_metadata
+const no_metadata = NoMetadata()
 
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
@@ -35,7 +33,6 @@ function metadata(x::CartesianIndices; dim=nothing)
         return metadata(x.indices[dim])
     end
 end
-_metadata(x, ::Val{dim}) where {dim} = _metadata(x, dim)
 function _metadata(x::X, dim) where {X}
     if parent_type(X) <: X
         return no_metadata
@@ -52,9 +49,8 @@ function _metadata(x::X, ::Nothing) where {X}
         return metadata(parent(x))
     end
 end
-metadata(x::AbstractDict{Symbol}) = x
-metadata(x::NamedTuple) = x
-metadata(m::MetaStruct) = getfield(m, :metadata)
+metadata(x::AbstractDict{Symbol}; dim=nothing) = x
+metadata(x::NamedTuple; dim=nothing) = x
 function metadata(m::Module)
     if isdefined(m, GLOBAL_METADATA)
         return getfield(m, GLOBAL_METADATA)::GlobalMetadata
@@ -68,14 +64,15 @@ function metadata(x::MetaID)
     return @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
 end
 
-metadata(x, k; dim=nothing) = _metadata(x, k, dim)
-_metadata(x, k, ::Val{dim}) where {dim} = _metadata(x, k, dim)
-_metadata(x, k, dim) = metadata(metadata(x, dim), k)
-@inline function _metadata(x, k, ::Nothing)
-    if metadata_type(x) <: AbstractDict
-        return getindex(metadata(x), k)
+@inline function metadata(x, k; dim=nothing)
+    if dim === nothing
+        if metadata_type(x) <: AbstractDict
+            return getindex(metadata(x), k)
+        else
+            return getproperty(metadata(x), k)
+        end
     else
-        return getproperty(metadata(x), k)
+        return metadata(metadata(x; dim=dim), k)
     end
 end
 
@@ -85,14 +82,12 @@ end
 Set `x`'s metadata paired to `k` to `val`. If `dim` is specified then the metadata
 corresponding to that dimension is mutated.
 """
-metadata!(x, k, val; dim=nothing) = _metadata!(x, k, val, dim)
-_metadata!(x, k, val, ::Val{dim}) where {dim} = _metadata!(x, k, val, dim)
-_metadata!(x, k, val, dim) = _metadata!(axes(x, dim), k, val, nothing)
-function _metadata!(x, k, val, ::Nothing)
-    if metadata_type(x) <: AbstractDict
-        return setindex!(metadata(x), val, k)
+@inline function metadata!(x, k, val; dim=nothing)
+    m = metadata(x; dim=dim)
+    if m isa AbstractDict
+        return setindex!(m, val, k)
     else
-        return setproperty!(metadata(x), k, val)
+        return setproperty!(m, k, val)
     end
 end
 
@@ -143,7 +138,6 @@ metadata_type(::Type{T}; dim=nothing) where {P,M,T<:MetaStruct{P,M}} = M
 metadata_type(::Type{T}; dim=nothing) where {T<:Module} = GlobalMetadata
 metadata_type(::Type{T}; dim=nothing) where {T<:MetaID} = valtype(GlobalMetadata)
 
-
 """
     has_metadata(x[, k; dim]) -> Bool
 
@@ -152,16 +146,13 @@ of a metadata paired to `k`. If `dim` is specified then this checks the metadata
 the corresponding dimension.
 """
 has_metadata(x; dim=nothing) = !(metadata_type(x; dim=dim) <: NoMetadata)
-
-has_metadata(x, k; dim=nothing) = _has_metadata(x, k, dim)
-_has_metadata(x, k, ::Val{dim}) where {dim} = has_metadata(x, k; dim=dim)
-_has_metadata(x, k, dim) = has_metadata(metadata(x; dim=dim), k)
-@inline function _has_metadata(x, k, ::Nothing)
-    if has_metadata(x)
-        if metadata_type(x) <: AbstractDict
-            return haskey(metadata(x), k)
+@inline function has_metadata(x, k; dim=nothing)
+    if has_metadata(x; dim=dim)
+        m = metadata(x; dim=dim)
+        if m isa AbstractDict
+            return haskey(m, k)
         else
-            return hasproperty(metadata(x), k)
+            return hasproperty(m, k)
         end
     else
         return false
@@ -283,20 +274,6 @@ propagate_metadata(::DropMetadata, src, dst) = dst
 propagate_metadata(::ShareMetadata, src, dst) = share_metadata(src, dst)
 propagate_metadata(::CopyMetadata, src, dst) = copy_metadata(src, dst)
 
-#= TODO
-+(x, y) needs to have a way of combining metadata and incorporating the propagation
-info for each type
-
-function combine_metadata(x::AbstractUnitRange, y::AbstractUnitRange)
-    return combine_metadata(metadata(x), metadata(y))
-end
-combine_metadata(x, y)
-combine_metadata(::Nothing, ::Nothing) = nothing
-combine_metadata(::Nothing, y) = y
-combine_metadata(x, ::Nothing) = x
-combine_metadata(x, y) = merge(x, y)
-=#
-
 function combine_metadata(x, y, dst)
     return _combine_meta(MetadataPropagation(x), MetadataPropagation(y), x, y, dst)
 end
@@ -378,23 +355,6 @@ end
 # - used within Base.showarg for MetaArray
 showarg_metadata(x) = "::$(metadata_type(x))"
 
-macro defpairs(f, T)
-    esc(quote
-
-        function $f(x::$T, y)
-            return Metadata.propagate_metadata(x, $f(parent(x), y))
-        end
-
-        function $f(x, y::$T)
-            return Metadata.propagate_metadata(y, $f(x, parent(y)))
-        end
-
-        function $f(x::$T, y::$T)
-            return Metadata.combine_metadata(x, y, $f(parent(x), parent(y)))
-        end
-    end)
-end
-
 function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
     for (k, v) in pairs(kwargs)
         meta[k] = v
@@ -411,4 +371,3 @@ function _construct_meta(meta, kwargs::NamedTuple)
         error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
     end
 end
-

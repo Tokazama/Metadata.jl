@@ -11,15 +11,21 @@ using Metadata: MetaArray
 
 include("metaid.jl")
 
+@testset "methods" begin
+    @test metadata_type(Dict{Symbol,Any}) <: Dict{Symbol,Any}
+    @test metadata_type(NamedTuple{(),Tuple{}}) <: NamedTuple{(),Tuple{}}
+    @test Metadata.MetadataPropagation(Metadata.NoMetadata) == Metadata.DropMetadata()
+end
+
 @testset "MetaArray" begin
     x = ones(4, 4);
     xview = view(x, :, :)
     meta = (m1 =1, m2=[1, 2]);
     mx = attach_metadata(meta)(x);
     mxview = attach_metadata(meta)(xview)
-    @test parent_type(mx) <: typeof(x)
-    @test parent_type(mxview) <: typeof(xview)
-    @test typeof(mx)(xview, meta) isa typeof(mx)
+    @test @inferred(parent_type(mx)) <: typeof(x)
+    @test @inferred(parent_type(mxview)) <: typeof(xview)
+    @test @inferred(typeof(mx)(xview, meta)) isa typeof(mx)
 
     mx = attach_metadata(x)
     mvx = typeof(mx)(xview; m1 = 1, m2 = [1, 2])
@@ -35,35 +41,37 @@ include("metaid.jl")
     meta = (m1 =1, m2=[1, 2]);
     mx = attach_metadata(meta)(x);
 
-    @test metadata(mx) == meta
-    @test has_metadata(mx)
-    @test has_metadata(mx, :m1)
+    @test @inferred(metadata(mx)) == meta
+    @test @inferred(has_metadata(mx))
+    @test @inferred(has_metadata(mx, :m1))
     @test metadata(mx, :m1) == 1
     @test Metadata.metadata_keys(mx) == (:m1, :m2)
     @test mx[1] == 1
     @test mx[1:2] == [1, 1]
     @test metadata(mx[1:2]) == metadata(mx)
-    @test metadata_type(mx) <: NamedTuple
-    @test !has_metadata(mx, dim=1)
+    @test @inferred(metadata_type(mx)) <: NamedTuple
+    @test @inferred(!has_metadata(mx, dim=1))
 
     meta = Dict(:m1 => 1, :m2 => [1,2])
     mx = attach_metadata(x, meta);
-    @test parent_type(typeof(mx)) <: typeof(x)
-    @test metadata(mx) == meta
-    @test has_metadata(mx)
-    @test has_metadata(mx, :m1)
+    @test @inferred(parent_type(typeof(mx))) <: typeof(x)
+    @test @inferred(metadata(mx)) == meta
+    @test @inferred(has_metadata(mx))
+    @test @inferred(has_metadata(mx, :m1))
     @test metadata(mx, :m1) == 1
     # Currently Dict doesn't preserve order so we just check for presence of keys
     @test in(:m1, Metadata.metadata_keys(mx))
     @test in(:m2, Metadata.metadata_keys(mx))
+    @test in(:m1, propertynames(mx))
+    @test in(:m2, propertynames(mx))
     @test mx[1] == 1
     @test mx[1:2] == [1, 1]
-    @test metadata(mx[1:2]) == metadata(mx)
-    @test metadata_type(mx) <: AbstractDict
+    @test @inferred(metadata(mx[1:2])) == metadata(mx)
+    @test @inferred(metadata_type(mx)) <: AbstractDict
 
     @test IndexStyle(typeof(mx)) isa IndexLinear
-    @test size(mx) == (4, 4)
-    @test axes(mx) == (1:4, 1:4)
+    @test @inferred(size(mx)) == (4, 4)
+    @test @inferred(axes(mx)) == (1:4, 1:4)
 end
 
 @testset "MetaRange" begin
@@ -108,17 +116,22 @@ end
 end
 
 @testset "LinearIndices/CartesianIndices" begin
-    meta = (m1 =1, m2=[1, 2])
+    meta = Dict{Symbol,Any}(:m1 => 1, :m2 => [1, 2])
     x = LinearIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
     @test metadata(x, dim=1) == meta
-    @test has_metadata(x, dim=1)
-    @test !has_metadata(x)
+    @test metadata(x, :m1, dim=1) == 1
+    metadata!(x, :m1, 2, dim=1)
+    @test metadata(x, :m1, dim=1) == 2
+    @test @inferred(metadata(x)) == Metadata.no_metadata
+    @test @inferred(has_metadata(x, dim=1))
+    @test @inferred(!has_metadata(x))
 
     meta = (m1 =1, m2=[1, 2])
     x = CartesianIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
     @test metadata(x, dim=1) == meta
-    @test has_metadata(x, dim=1)
-    @test !has_metadata(x)
+    @test metadata(x) == Metadata.no_metadata
+    @test @inferred(has_metadata(x, dim=1))
+    @test @inferred(!has_metadata(x))
 end
 
 @testset "MetaArray(LinearIndices)" begin
@@ -188,4 +201,3 @@ end
 @testset "docs" begin
     doctest(Metadata)
 end
-

@@ -97,7 +97,6 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     end
 end
 
-metadata(A::MetaArray) = getfield(A, :metadata)
 metadata_type(::Type{MetaArray{T,N,M,A}}) where {T,N,M,A} = M
 
 Base.parent(A::MetaArray) = getfield(A, :parent)

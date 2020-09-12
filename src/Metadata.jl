@@ -31,6 +31,20 @@ include("ranges.jl")
 include("elementwise.jl")
 include("io.jl")
 
+for T in (MetaIO, MetaStruct, MetaArray, MetaRange, MetaUnitRange)
+    @eval begin
+        @inline function Metadata.metadata(x::$T; dim=nothing)
+            if dim === nothing
+                return getfield(x, :metadata)
+            else
+                return metadata(parent(x); dim=dim)
+            end
+        end
+
+
+    end
+end
+
 @defproperties MetaArray
 
 @defproperties MetaRange

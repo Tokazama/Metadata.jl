@@ -23,6 +23,7 @@ struct MetaRange{T,P<:AbstractRange{T},M} <: AbstractRange{T}
     metadata::M
 end
 
+Base.parent(r::MetaRange) = getfield(r, :parent)
 ArrayInterface.parent_type(::Type{<:MetaRange{<:Any,P,<:Any}}) where {P} = P
 metadata_type(::Type{<:MetaRange{<:Any,<:Any,M}}) where {M} = M
 
@@ -67,32 +68,34 @@ struct MetaUnitRange{T,P<:AbstractRange{T},M} <: AbstractUnitRange{T}
     MetaUnitRange(p::AbstractRange, m) = MetaUnitRange{eltype(p)}(p, m)
 end
 
+Base.parent(r::MetaUnitRange) = getfield(r, :parent)
 ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
 metadata_type(::Type{<:MetaUnitRange{<:Any,<:Any,M}}) where {M} = M
 
+@_define_single_function_no_prop(Base, first, MetaRange)
+@_define_single_function_no_prop(Base, step, MetaRange)
+@_define_single_function_no_prop(Base, last, MetaRange)
+@_define_single_function_no_prop(Base, length, MetaRange)
+@_define_single_function_no_prop(Base, first, MetaUnitRange)
+@_define_single_function_no_prop(Base, step, MetaUnitRange)
+@_define_single_function_no_prop(Base, last, MetaUnitRange)
+@_define_single_function_no_prop(Base, length, MetaUnitRange)
+
+Base.@propagate_inbounds function Base.getindex(@nospecialize(r::MetaUnitRange), i::Integer)
+    return getindex(parent(r), i)
+end
+
+Base.@propagate_inbounds function Base.getindex(@nospecialize(r::MetaRange), i::Integer)
+    return getindex(parent(r), i)
+end
+
 for T in (MetaRange, MetaUnitRange)
     @eval begin
-        metadata(r::$T) = getfield(r, :metadata)
-
-        Base.parent(r::$T) = getfield(r, :parent)
-
-        Base.first(r::$T) = first(parent(r))
-
-        Base.step(r::$T) = step(parent(r))
-
-        Base.last(r::$T) = last(parent(r))
-
         ArrayInterface.known_first(::Type{T}) where {T<:$T} = known_first(parent_type(T))
 
         ArrayInterface.known_last(::Type{T}) where {T<:$T} = known_last(parent_type(T))
 
         ArrayInterface.known_step(::Type{T}) where {T<:$T} = known_step(parent_type(T))
-
-        Base.@propagate_inbounds function Base.getindex(r::$T, i::Integer)
-            return getindex(parent(r), i)
-        end
-
-        Base.length(r::$T) = length(parent(r))
 
         Base.@propagate_inbounds function Base.getindex(r::$T, inds)
             return propagate_metadata(r, getindex(parent(r), inds))
@@ -117,4 +120,3 @@ end
 end
 Base.getindex(r::MetaRange, ::Colon) = copy(r)
 Base.getindex(r::MetaUnitRange, ::Colon) = copy(r)
-
