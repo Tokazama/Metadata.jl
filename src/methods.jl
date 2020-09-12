@@ -106,40 +106,43 @@ function metadata_type(x; dim=nothing)
     if dim === nothing
         return metadata_type(typeof(x))
     else
-        return metadata_type(x, dim)
+        return metadata_type(typeof(x); dim=dim)
     end
 end
-metadata_type(::Type{T}) where {T<:AbstractDict} = T
-metadata_type(::Type{T}) where {T<:NamedTuple} = T
-function metadata_type(::Type{T}) where {T}
+@inline function metadata_type(::Type{T}; dim=nothing) where {T}
     if parent_type(T) <: T
         return NoMetadata
     else
-        return metadata_type(parent_type(T))
+        if dim === nothing
+            return metadata_type(parent_type(T))
+        else
+            return metadata_type(parent_type(T); dim=dim)
+        end
     end
 end
-metadata_type(x, dim) = metadata_type(typeof(x), dim)
-metadata_type(x, ::Val{dim}) where {dim} = 
-metadata_type(::Type{T}, ::Val{dim}) where {T, dim} = metadata_type(T, dim)
-function metadata_type(::Type{T}, dim) where {T}
-    if parent_type(T) <: T
+
+metadata_type(::Type{T}; dim=nothing) where {T<:AbstractDict} = T
+metadata_type(::Type{T}; dim=nothing) where {T<:NamedTuple} = T
+function metadata_type(::Type{CartesianIndices{N,R}}; dim=nothing) where {N,R}
+    if dim === nothing
         return NoMetadata
     else
-        return metadata_type(parent_type(T), dim)
+        return metadata_type(R.parameters[dim])
     end
 end
-function metadata_type(::Type{CartesianIndices{N,R}}, dim) where {N,R}
-    return metadata_type(R.parameters[dim])
+
+function metadata_type(::Type{LinearIndices{N,R}}; dim=nothing) where {N,R}
+    if dim === nothing
+        return NoMetadata
+    else
+        return metadata_type(R.parameters[dim])
+    end
 end
 
-function metadata_type(::Type{LinearIndices{N,R}}, dim) where {N,R}
-    return metadata_type(R.parameters[dim])
-end
-metadata_type(::Type{T}) where {P,M,T<:MetaStruct{P,M}} = M
-metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
-metadata_type(::Type{T}) where {T<:MetaID} = valtype(GlobalMetadata)
+metadata_type(::Type{T}; dim=nothing) where {P,M,T<:MetaStruct{P,M}} = M
+metadata_type(::Type{T}; dim=nothing) where {T<:Module} = GlobalMetadata
+metadata_type(::Type{T}; dim=nothing) where {T<:MetaID} = valtype(GlobalMetadata)
 
-# TODO metadata_type(x; dim)
 
 """
     has_metadata(x[, k; dim]) -> Bool
@@ -148,10 +151,7 @@ Returns true if `x` has metadata. If `k` is specified then checks for the existe
 of a metadata paired to `k`. If `dim` is specified then this checks the metadata at
 the corresponding dimension.
 """
-has_metadata(x; dim=nothing) = _has_metadata(x, dim)
-_has_metadata(x, ::Nothing) = !(metadata_type(x) <: NoMetadata)
-_has_metadata(x, ::Val{dim}) where {dim} = has_metadata(x; dim=dim)
-_has_metadata(x, dim) = !(metadata_type(x, dim) <: NoMetadata)
+has_metadata(x; dim=nothing) = !(metadata_type(x; dim=dim) <: NoMetadata)
 
 has_metadata(x, k; dim=nothing) = _has_metadata(x, k, dim)
 _has_metadata(x, k, ::Val{dim}) where {dim} = has_metadata(x, k; dim=dim)
@@ -309,6 +309,8 @@ function _combine_meta(px::MetadataPropagation, py::DropMetadata, x, y, dst)
     return propagate_metadata(px, x, dst)
 end
 
+_combine_meta(px::DropMetadata, py::DropMetadata, x, y, dst) = dst
+
 function _combine_meta(px::CopyMetadata, py::CopyMetadata, x, y, dst)
     return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
 end
@@ -409,3 +411,4 @@ function _construct_meta(meta, kwargs::NamedTuple)
         error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
     end
 end
+

@@ -12,21 +12,10 @@ struct MetaStruct{P,M}
     metadata::M
 end
 
+#Base.parent(m::MetaStruct) = @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
+
 Base.parent(m::MetaStruct) = getfield(m, :parent)
-
 ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
-
-function unsafe_attach_eachmeta(x::AbstractVector, m::NamedTuple{L}, i::Int) where {L}
-    return MetaStruct(
-        x,
-        NamedTuple{L}(ntuple(i -> @inbounds(m[L[i]][index]), Val(length(L))))
-    )
-end
-
-# TODO `eachindex` should change to `ArrayInterface.indices`
-function attach_eachmeta(x::AbstractVector, m::NamedTuple)
-    return map(i -> unsafe_attach_eachmeta(@inbounds(x[i]), m, i), eachindex(p, m...))
-end
 
 const modules = Module[]
 const MDict = Dict{Symbol,Any}

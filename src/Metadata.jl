@@ -23,6 +23,7 @@ export
 
 const METADATA_TYPES = Union{Module,<:AbstractDict{Symbol,Any},<:NamedTuple}
 
+include("utils.jl")
 include("metaid.jl")
 include("methods.jl")
 include("metaarray.jl")

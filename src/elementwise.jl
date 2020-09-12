@@ -25,8 +25,9 @@ ArrayInterface.parent_type(::Type{ElementwiseMetaArray{T,N,P}}) where {T,N,P} = 
 Base.parent(A::ElementwiseMetaArray) = getfield(A, :parent)
 
 function metadata_type(::Type{T}) where {T<:ElementwiseMetaArray}
-    return metadata_type(parent_type(T))
+    return metadata_type(eltype(parent_type(T)))
 end
+
 
 function metadata_keys(x::ElementwiseMetaArray{T,N,P}) where {T,N,P}
     ks = known_keys(metadata_type(x))
@@ -39,7 +40,7 @@ end
 
 @propagate_inbounds function Base.getindex(A::ElementwiseMetaArray{T}, args...) where {T}
     val = getindex(parent(A), args...)
-    if val isa T
+    if val isa eltype(parent_type(A))
         return parent(val)
     else
         return ElementwiseMetaArray(val)
@@ -61,7 +62,7 @@ struct MetaView{L,T,N,P<:AbstractArray{<:Any,N}} <: AbstractArray{T,N}
 
     function MetaView{L}(x::AbstractArray{T,N}) where {L,T,N}
         if has_metadata(T)
-            return new{L,metadata_type(T, L),N,typeof(x)}(x)
+            return new{L,fieldtype(metadata_type(T), L),N,typeof(x)}(x)
         else
             throw(ArgumentError("eltype of array does not have metadata: got $T."))
         end
@@ -73,8 +74,9 @@ ArrayInterface.parent_type(::Type{MetaView{L,T,N,P}}) where {L,T,N,P} = P
 Base.parent(x::MetaView) = getfield(x, :parent)
 
 @propagate_inbounds function Base.getindex(x::MetaView{L,T}, args...) where {L,T}
-    if val isa T
-        return val
+    val = getindex(parent(x), args...)
+    if val isa eltype(parent_type(x))
+        return metadata(val, L)
     else
         return MetaView{L}(val)
     end
@@ -91,6 +93,20 @@ end
 
 metadata(A::ElementwiseMetaArray, k::Symbol) = MetaView{k}(parent(A))
 
+function unsafe_attach_eachmeta(x::AbstractVector, m::NamedTuple{L}, i::Int) where {L}
+    return MetaStruct(
+        @inbounds(x[i]),
+        NamedTuple{L}(ntuple(index -> @inbounds(m[L[index]][i]), Val(length(L))))
+    )
+end
+
+# TODO `eachindex` should change to `ArrayInterface.indices`
+function attach_eachmeta(x::AbstractVector, m::NamedTuple)
+    return ElementwiseMetaArray(map(i -> unsafe_attach_eachmeta(x, m, i), eachindex(x, m...)))
+end
+
+@_define_single_function_no_prop(Base, size, ElementwiseMetaArray)
+@_define_single_function_no_prop(Base, size, MetaView)
 
 # TODO function drop_metadata(x::ElementwiseMetaArray) end
 

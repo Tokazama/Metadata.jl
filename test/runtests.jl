@@ -7,6 +7,8 @@ using ArrayInterface: parent_type
 using Metadata: MetaArray
 
 
+@test isempty(detect_ambiguities(Metadata, Base))
+
 include("metaid.jl")
 
 @testset "MetaArray" begin
@@ -166,6 +168,24 @@ end
     # Base.stat(@nospecialize(s::MetaIO)) = stat(parent(s))
 end
 
+@testset "ElementwiseMetaArray" begin
+    x = [1, 2, 3]
+    meta = (weight = [1.0, 2.0, 3.0],)
+
+    mx = attach_eachmeta(x, meta)
+    @test mx[1] === 1
+    @test mx[2] === 2
+    @test mx[3] === 3
+    @test mx[1:2][2] === 2
+
+    mxview = mx.weight;
+    @test mxview[1] === 1.0
+    @test mxview[2] === 2.0
+    @test mxview[3] === 3.0
+    @test mxview[1:2][2] === 2.0
+end
+
 @testset "docs" begin
     doctest(Metadata)
 end
+

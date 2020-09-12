@@ -102,9 +102,8 @@ metadata_type(::Type{MetaArray{T,N,M,A}}) where {T,N,M,A} = M
 
 Base.parent(A::MetaArray) = getfield(A, :parent)
 
-Base.size(s::MetaArray) = Base.size(parent(s))
-
-Base.axes(s::MetaArray) = Base.axes(parent(s))
+@_define_single_function_no_prop(Base, size, MetaArray)
+@_define_single_function_no_prop(Base, axes, MetaArray)
 
 Base.IndexStyle(T::Type{<:MetaArray}) = IndexStyle(parent_type(T))
 

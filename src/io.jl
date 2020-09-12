@@ -7,43 +7,37 @@ end
 Base.parent(x::MetaIO) = getfield(x, :parent)
 metadata(x::MetaIO) = getfield(x, :metadata)
 
-#=
-for f in (isreadonly,)
-    @eval begin
-        Base.$f(@nosepcialize(x::MetaIO)) = Base.$f(parent(x))
-    end
-end
-=#
+@_define_single_function_no_prop(Base, isreadonly, MetaIO)
+@_define_single_function_no_prop(Base, isreadable, MetaIO)
+@_define_single_function_no_prop(Base, iswritable, MetaIO)
+@_define_single_function_no_prop(Base, stat, MetaIO)
+@_define_single_function_no_prop(Base, eof, MetaIO)
+@_define_single_function_no_prop(Base, position, MetaIO)
+@_define_single_function_no_prop(Base, close, MetaIO)
+@_define_single_function_no_prop(Base, isopen, MetaIO)
+@_define_single_function_no_prop(Base, ismarked, MetaIO)
+@_define_single_function_no_prop(Base, mark, MetaIO)
+@_define_single_function_no_prop(Base, unmark, MetaIO)
+@_define_single_function_no_prop(Base, reset, MetaIO)
+@_define_single_function_no_prop(Base, seekend, MetaIO)
 
-Base.isreadonly(@nospecialize(s::MetaIO)) = isreadonly(parent(s))
-Base.isreadable(@nospecialize(s::MetaIO)) = isreadable(parent(s))
-Base.iswritable(@nospecialize(s::MetaIO)) = iswritable(parent(s))
+@_define_two_function_no_prop_first(Base, skip, MetaIO, Integer)
+@_define_two_function_no_prop_first(Base, seek, MetaIO, Integer)
+@_define_two_function_no_prop_first(Base, read, MetaIO, Integer)
+@_define_two_function_no_prop_first(Base, read!, MetaIO, Ref)
+@_define_two_function_no_prop_first(Base, read!, MetaIO, AbstractArray)
+@_define_two_function_no_prop_first(Base, read!,  MetaIO, Array{UInt8})
+@_define_two_function_no_prop_first(Base, read!,  MetaIO, BitArray)
 
-Base.seek(@nospecialize(s::MetaIO), n::Integer) = seek(parent(s), n)
-Base.position(@nospecialize(s::MetaIO))  = position(parent(s))
-Base.skip(@nospecialize(s::MetaIO), n::Integer) = skip(parent(s), n)
-Base.eof(@nospecialize(s::MetaIO)) = eof(parent(s))
-Base.stat(@nospecialize(s::MetaIO)) = stat(parent(s))
-Base.close(@nospecialize(s::MetaIO)) = close(parent(s))
-Base.isopen(@nospecialize(s::MetaIO)) = isopen(parent(s))
-Base.ismarked(@nospecialize(s::MetaIO)) = ismarked(parent(s))
-Base.mark(@nospecialize(s::MetaIO)) = mark(parent(s))
-Base.unmark(@nospecialize(s::MetaIO)) = unmark(parent(s))
-Base.reset(@nospecialize(s::MetaIO)) = reset(parent(s))
-Base.seekend(@nospecialize(s::MetaIO)) = seekend(parent(s))
+@_define_two_function_no_prop_first(Base, write, MetaIO, Array)
+@_define_two_function_no_prop_first(Base, write, MetaIO, AbstractArray)
+@_define_two_function_no_prop_first(Base, write, MetaIO, BitArray)
+@_define_two_function_no_prop_first(Base, write, MetaIO, Base.CodeUnits)
+@_define_two_function_no_prop_first(Base, write, MetaIO, Union{Float16, Float32, Float64, Int128, Int16, Int32, Int64, UInt128, UInt16, UInt32, UInt64})
 
-Base.read(@nospecialize(s::MetaIO), n::Int) = read(parent(s), n)
-Base.read!(@nospecialize(s::MetaIO), x) = read!(parent(s), x)
-Base.read!(@nospecialize(s::MetaIO), x::Ref{T}) where {T} = read!(parent(s), x)
-Base.read!(@nospecialize(s::MetaIO), x::AbstractArray) = read!(parent(s), x)
 
-Base.write(@nospecialize(s::MetaIO), x) = write(parent(s), x)
-Base.write(@nospecialize(s::MetaIO), x::Array) = write(parent(s), x)
-Base.write(@nospecialize(s::MetaIO), x::AbstractArray) = write(parent(s), x)
+#Base.read(@nospecialize(s::MetaIO), n::Int) = read(parent(s), n)
+
 function Base.write(@nospecialize(s::MetaIO), x::SubArray{T,N,P,I,L} where L where I where P<:Array) where {T, N}
     return write(parent(s), x)
 end
-function Base.write(s::MetaIO, val::Union{Float16, Float32, Float64, Int128, Int16, Int32, Int64, UInt128, UInt16, UInt32, UInt64})
-    return write(parent(s), val)
-end
-
