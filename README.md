@@ -101,5 +101,20 @@ julia> mx.y = :foo;
 Although `MetaID` is technically a subtype of `AbstractDict{Symbol,Any}`, its main function is to redirect everything to a module level dictionary. 
 The default module is `Main`, but we could have done `attach_metadata(ones(2, 2), MyOwnModule)`.
 In this case the raw dictionary can be accessed  with `metadata(Main, metadata(mx))`.
-Most users won't need to (and shouldn't) access these directly.
+Most users won't need to (and shouldn't) access these directly, but it may serve as unique tool for tool within a new package's module.
 
+If users want to access all of the metadata from one structure and attach it to another they should instead use `share_metadata(src, dst)` or `copy_metadata(src, dst)`.
+```julia
+julia> mx2 = share_metadata(mx, ones(2, 2));
+
+julia> metadata(mx2) === metadata(mx)
+true
+
+julia> mx3 = copy_metadata(mx2, ones(2, 2));
+
+julia> metadata(mx3) === metadata(mx2)
+false
+
+julia> metadata(mx3) == metadata(mx2)
+true
+```

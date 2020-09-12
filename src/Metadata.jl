@@ -14,7 +14,6 @@ export
     attach_eachmeta,
     attach_metadata,
     copy_metadata,
-    elementwise,
     has_metadata,
     metadata,
     metadata!,

@@ -69,6 +69,19 @@ end
 
 parent_module(x::MetaID) = getfield(x, :parent_module)
 
+function Base.deepcopy_internal(x::MetaID, stackdict::IdDict)
+    if haskey(stackdict, x)
+        return stackdict[x]::typeof(x)
+    end
+
+    dest = empty(x)
+    stackdict[x] = dest
+    for (k, v) in x
+        dest[Base.deepcopy_internal(k, stackdict)] = Base.deepcopy_internal(v, stackdict)
+    end
+    dest
+end
+
 # TODO document supressed_fields
 suppressed_fields(x::MetaID) = getfield(x, :suppressed_fields)
 
@@ -81,6 +94,7 @@ Base.getproperty(x::MetaID, k::Symbol) = getindex(metadata(x), k)
 Base.propertynames(m::MetaID) = Tuple(keys(m))
 
 Base.empty!(m::MetaID) = empty!(metadata(m))
+Base.empty(m::MetaID) = MetaID(parent_module(m))
 
 Base.get(m::MetaID, k::Symbol, @nospecialize(default)) = get(metadata(m), k, default)
 Base.get(m::GlobalMetadata, k::UInt, @nospecialize(default)) = get(data(m), k, default)
