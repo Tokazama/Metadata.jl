@@ -170,7 +170,7 @@ end
 
 Generic method for attaching metadata to `x`.
 """
-attach_metadata(x, m::METADATA_TYPES=Main) = MetaStruct(x, m)
+attach_metadata(x, m::METADATA_TYPES=Main) = MetaStruct(x, _maybe_metaid(m))
 attach_metadata(x::AbstractArray, m::METADATA_TYPES=Main) = MetaArray(x, _maybe_metaid(m))
 function attach_metadata(x::AbstractRange, m::METADATA_TYPES=Main)
     if known_step(x) === oneunit(eltype(x))
@@ -361,4 +361,9 @@ function _construct_meta(meta, kwargs::NamedTuple)
     else
         error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
     end
+end
+
+function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
+    print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
+    print(io, Metadata.metadata_summary(x))
 end
