@@ -18,7 +18,13 @@ Returns metadata from `x`. If `k` is specified then the metadata value paired to
 `k` is returned. If `dim` is specified then the operation is performed for metadata
 specific to dimension `dim`.
 """
-metadata(x; dim=nothing) = _metadata(x, dim)
+function metadata(x::T; dim=nothing) where {T}
+    if parent_type(T) <: T
+        return no_metadata
+    else
+        return metadata(parent(x); dim=dim)
+    end
+end
 function metadata(x::LinearIndices; dim=nothing)
     if dim === nothing
         return no_metadata
@@ -33,48 +39,49 @@ function metadata(x::CartesianIndices; dim=nothing)
         return metadata(x.indices[dim])
     end
 end
-function _metadata(x::X, dim) where {X}
-    if parent_type(X) <: X
+function metadata(x::AbstractDict; dim=nothing)
+    if dim === nothing
+        return x
+    else
         return no_metadata
-    else
-        return metadata(parent(x); dim=dim)
     end
 end
-function _metadata(x::X, ::Nothing) where {X}
-    if parent_type(X) <: X  
+function metadata(x::NamedTuple; dim=nothing)
+    if dim === nothing
+        return x
+    else
         return no_metadata
-    else
-        # although `X` doesn't explicitly have metadata, it does have a parent
-        # structure that may have metadata.
-        return metadata(parent(x))
     end
 end
-metadata(x::AbstractDict{Symbol}; dim=nothing) = x
-metadata(x::NamedTuple; dim=nothing) = x
-function metadata(m::Module)
-    if isdefined(m, GLOBAL_METADATA)
-        return getfield(m, GLOBAL_METADATA)::GlobalMetadata
+function metadata(m::Module; dim=nothing)
+    if dim === nothing
+        if isdefined(m, GLOBAL_METADATA)
+            return getfield(m, GLOBAL_METADATA)::GlobalMetadata
+        else
+            return GlobalMetadata(m)
+        end
     else
-        return GlobalMetadata(m)
+        return no_metadata
     end
 end
-function metadata(x::MetaID)
-    # This is known to be inbounds because MetaID cannot be constructed without also
-    # assigning a dictionary to `objectid(x)` in the parent module's global metadata dict
-    return @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
+function metadata(x::MetaID; dim=nothing)
+    if dim === nothing
+        # This is known to be inbounds because MetaID cannot be constructed without also
+        # assigning a dictionary to `objectid(x)` in the parent module's global metadata dict
+        return @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
+    else
+        return no_metadata
+    end
 end
 
 @inline function metadata(x, k; dim=nothing)
-    if dim === nothing
-        if metadata_type(x) <: AbstractDict
-            return getindex(metadata(x), k)
-        else
-            return getproperty(metadata(x), k)
-        end
+    if metadata_type(x; dim=dim) <: AbstractDict
+        return getindex(metadata(x; dim=dim), k)
     else
-        return metadata(metadata(x; dim=dim), k)
+        return getproperty(metadata(x; dim=dim), k)
     end
 end
+
 
 """
     metadata!(x, k, val[; dim])
@@ -83,11 +90,10 @@ Set `x`'s metadata paired to `k` to `val`. If `dim` is specified then the metada
 corresponding to that dimension is mutated.
 """
 @inline function metadata!(x, k, val; dim=nothing)
-    m = metadata(x; dim=dim)
-    if m isa AbstractDict
-        return setindex!(m, val, k)
+    if metadata_type(x; dim=dim) <: AbstractDict
+        return setindex!(metadata(x; dim=dim), val, k)
     else
-        return setproperty!(m, k, val)
+        return setproperty!(metadata(x; dim=dim), k, val)
     end
 end
 
@@ -207,29 +213,14 @@ Returns `x` without metadata attached.
 """
 drop_metadata(x) = parent(x)
 
-"""
-    known_keys(::Type{T}) where {T}
-
-Returns the keys of `T` if they are known at compile time. Otherwise, returns nothing.
-"""
-known_keys(x) = known_keys(typeof(x))
-known_keys(::Type{T}) where {T} = nothing
-known_keys(::Type{NamedTuple{L,T}}) where {L,T} = L
-
-# when keys are known at compile time
-known_metadata_keys(x) = known_metadata_keys(typeof(x))
-known_metadata_keys(::Type{T}) where {T} = known_keys(metadata_type(T))
-
 # This allows dictionaries's keys to be treated like property names
-@inline function metadata_keys(x)
-    if metadata_type(x) <: NoMetadata return propertynames(x)
+@inline function metadata_keys(x; dim=nothing)
+    if metadata_type(x; dim=dim) <: AbstractDict
+        return keys(metadata(x; dim=dim))
     else
-        return metadata_keys(metadata(x))
+        return fieldnames(metadata_type(x; dim=dim))
     end
 end
-metadata_keys(x::AbstractDict) = keys(x)
-metadata_keys(x::NamedTuple{L}) where {L} = L
-
 
 """
     MetadataPropagation(::Type{T})

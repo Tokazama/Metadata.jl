@@ -24,17 +24,19 @@ ArrayInterface.parent_type(::Type{ElementwiseMetaArray{T,N,P}}) where {T,N,P} = 
 
 Base.parent(A::ElementwiseMetaArray) = getfield(A, :parent)
 
-function metadata_type(::Type{T}) where {T<:ElementwiseMetaArray}
-    return metadata_type(eltype(parent_type(T)))
+function metadata_type(::Type{T}; dim=nothing) where {T<:ElementwiseMetaArray}
+    if dim === nothing
+        return metadata_type(eltype(parent_type(T)))
+    else
+        return metadata_type(parent_type(T); dim=dim)
+    end
 end
 
-
-function metadata_keys(x::ElementwiseMetaArray{T,N,P}) where {T,N,P}
-    ks = known_keys(metadata_type(x))
-    if ks === nothing
+@inline function metadata_keys(x::ElementwiseMetaArray; dim=dim)
+    if metadata_type(x; dim=dim) <: AbstractDict
         return metadata_keys(first(parent(x)))
     else
-        return ks
+        return fieldnames(metadata_type(x))
     end
 end
 
@@ -82,16 +84,26 @@ Base.parent(x::MetaView) = getfield(x, :parent)
     end
 end
 
-@inline function metadata(A::ElementwiseMetaArray)
-    ks = known_keys(A)
-    if ks === nothing
-        return Dict(map(k -> metadata(A, k), metadata_keys(A))...)
+@inline function metadata(A::ElementwiseMetaArray; dim=nothing)
+    if dim === nothing
+        if metadata_type(A) isa AbstractDict
+            return Dict(map(k -> metadata(A, k), metadata_keys(A))...)
+        else
+            ks = fieldnames(metadata_type(A))
+            return NamedTuple{ks}(map(k -> metadata(A, k), ks))
+        end
     else
-        return NamedTuple{ks}(map(k -> metadata(A, k), ks))
+        return metadata(parent(A); dim=dim)
     end
 end
 
-metadata(A::ElementwiseMetaArray, k::Symbol) = MetaView{k}(parent(A))
+@inline function metadata(A::ElementwiseMetaArray, k::Symbol; dim=nothing)
+    if dim === nothing
+        return MetaView{k}(parent(A))
+    else
+        return metadata(parent(A), k; dim=dim)
+    end
+end
 
 function unsafe_attach_eachmeta(x::AbstractVector, m::NamedTuple{L}, i::Int) where {L}
     return MetaStruct(
@@ -107,6 +119,9 @@ end
 
 @_define_single_function_no_prop(Base, size, ElementwiseMetaArray)
 @_define_single_function_no_prop(Base, size, MetaView)
+@_define_single_function_no_prop(Base, axes, ElementwiseMetaArray)
+@_define_single_function_no_prop(Base, axes, MetaView)
+
 
 # TODO function drop_metadata(x::ElementwiseMetaArray) end
 

@@ -4,7 +4,7 @@ using Metadata
 using Documenter
 
 using ArrayInterface: parent_type
-using Metadata: MetaArray
+using Metadata: MetaArray, no_metadata, GlobalMetadata
 
 
 @test isempty(detect_ambiguities(Metadata, Base))
@@ -12,9 +12,18 @@ using Metadata: MetaArray
 include("metaid.jl")
 
 @testset "methods" begin
+    io = IOBuffer()
+    show(io, Metadata.no_metadata)
+    @test String(take!(io)) == "no_metadata"
     @test metadata_type(Dict{Symbol,Any}) <: Dict{Symbol,Any}
     @test metadata_type(NamedTuple{(),Tuple{}}) <: NamedTuple{(),Tuple{}}
     @test Metadata.MetadataPropagation(Metadata.NoMetadata) == Metadata.DropMetadata()
+    @test @inferred(metadata(Dict{Symbol,Any}())) == Dict{Symbol,Any}()
+    @test @inferred(metadata(Dict{Symbol,Any}(); dim=1)) == no_metadata
+    @test @inferred(metadata((x =1,))) == (x =1,)
+    @test @inferred(metadata((x =1,); dim=1)) == no_metadata
+    @test @inferred(metadata(Main)) isa GlobalMetadata
+    @test @inferred(metadata(Main; dim=1)) == no_metadata
 end
 
 @testset "MetaArray" begin
@@ -100,10 +109,10 @@ end
     @test mx[1] == 1
     @test mx[1:2] == [1, 2]
     @test metadata(mx[1:2]) == metadata(mx)
-    @test first(x) == first(mx)
-    @test step(x) == step(mx)
-    @test last(x) == last(mx)
-    @test length(mx) == length(x)
+    @test @inferred(first(x)) == first(mx)
+    @test @inferred(step(x)) == step(mx)
+    @test @inferred(last(x)) == last(mx)
+    @test @inferred(length(mx)) == length(x)
     @test ArrayInterface.known_first(mx) === ArrayInterface.known_first(x)
     @test ArrayInterface.known_last(mx) === ArrayInterface.known_last(x)
     @test ArrayInterface.known_step(mx) === ArrayInterface.known_step(x)
@@ -118,6 +127,7 @@ end
 @testset "LinearIndices/CartesianIndices" begin
     meta = Dict{Symbol,Any}(:m1 => 1, :m2 => [1, 2])
     x = LinearIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
+    @test @inferred(metadata(x)) == no_metadata 
     @test metadata(x, dim=1) == meta
     @test metadata(x, :m1, dim=1) == 1
     metadata!(x, :m1, 2, dim=1)
@@ -128,6 +138,7 @@ end
 
     meta = (m1 =1, m2=[1, 2])
     x = CartesianIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
+    @test @inferred(metadata(x)) == no_metadata 
     @test metadata(x, dim=1) == meta
     @test metadata(x) == Metadata.no_metadata
     @test @inferred(has_metadata(x, dim=1))
@@ -177,8 +188,6 @@ end
     close(mio)
     @test !isopen(mio)
     @test metadata(mio) isa Metadata.MetaID
-
-    # Base.stat(@nospecialize(s::MetaIO)) = stat(parent(s))
 end
 
 @testset "ElementwiseMetaArray" begin
@@ -190,6 +199,8 @@ end
     @test mx[2] === 2
     @test mx[3] === 3
     @test mx[1:2][2] === 2
+    @test metadata(mx) == meta
+    @test metadata(mx; dim=1) == no_metadata
 
     mxview = mx.weight;
     @test mxview[1] === 1.0
