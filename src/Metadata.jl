@@ -11,6 +11,9 @@ using ArrayInterface: parent_type, known_first, known_last, known_step
 using Base: @propagate_inbounds, OneTo
 
 export
+    @attach_metadata,
+    @metadata,
+    @metadata!,
     attach_eachmeta,
     attach_metadata,
     copy_metadata,
@@ -20,11 +23,14 @@ export
     metadata_type,
     share_metadata
 
-const METADATA_TYPES = Union{Module,<:AbstractDict{Symbol,Any},<:NamedTuple}
+const METADATA_TYPES = Union{<:AbstractDict{Symbol,Any},<:NamedTuple}
+
+# default dict
+const MDict = Dict{Symbol,Any}
 
 include("utils.jl")
-include("metaid.jl")
 include("methods.jl")
+include("metastruct.jl")
 include("metaarray.jl")
 include("ranges.jl")
 include("elementwise.jl")
@@ -39,8 +45,6 @@ for T in (MetaIO, MetaStruct, MetaArray, MetaRange, MetaUnitRange)
                 return metadata(parent(x); dim=dim)
             end
         end
-
-
     end
 end
 
@@ -57,4 +61,3 @@ end
 @defproperties MetaIO
 
 end # module
-

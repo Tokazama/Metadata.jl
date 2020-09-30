@@ -41,7 +41,7 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
         end
     end
 
-    function MetaArray{T,N,M,A}(a::AbstractArray; metadata=Main, kwargs...) where {T,N,M,A}
+    function MetaArray{T,N,M,A}(a::AbstractArray; metadata=MDict(), kwargs...) where {T,N,M,A}
         return MetaArray{T,N,M,A}(a, _construct_meta(metadata, values(kwargs)))
     end
 
@@ -158,7 +158,7 @@ function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
 
     # 2) show actual content
     recur_io = IOContext(io, :SHOWN_SET => X)
-    Base.print_array(recur_io, X)
+    Base.print_array(recur_io, parent(X))
 end
 
 function Base.similar(x::MetaArray, t::Type, dims)

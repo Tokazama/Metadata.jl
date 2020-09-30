@@ -1,4 +1,44 @@
 
+const modules = Module[]
+const GLOBAL_METADATA    = gensym(:metadata)
+
+"""
+    GlobalMetadata <: AbstractDict{UInt,Dict{Symbol,Any}}
+
+Stores metadata for instances of types at the module level. It has restricted support
+for dictionary methods to ensure that references aren't unintentionally 
+"""
+struct GlobalMetadata <: AbstractDict{UInt,MDict}
+    data::IdDict{UInt,MDict}
+
+    function GlobalMetadata(m::Module)
+        if !isdefined(m, GLOBAL_METADATA)
+            Core.eval(m, :(const $GLOBAL_METADATA = $(new(IdDict{UInt,MDict}()))))
+            push!(modules, m)
+        end
+        return metadata(m)
+    end
+end
+
+data(m::GlobalMetadata) = getfield(m, :data)
+
+Base.get(m::GlobalMetadata, k::UInt, @nospecialize(default)) = get(data(m), k, default)
+
+Base.get!(m::GlobalMetadata, k::UInt, @nospecialize(default)) = get!(data(m), k, default)
+
+Base.isempty(m::GlobalMetadata) = isempty(data(m))
+
+Base.getindex(x::GlobalMetadata, k::UInt) = getindex(data(x), k)
+
+Base.setindex!(x::GlobalMetadata, v::MDict, k::UInt) = setindex!(data(x), v, k)
+
+Base.length(m::GlobalMetadata) = length(data(m))
+
+Base.keys(m::GlobalMetadata) = keys(data(m))
+
+Base.iterate(m::GlobalMetadata) = iterate(data(m))
+Base.iterate(m::GlobalMetadata, state) = iterate(data(m), state)
+
 """
     NoMetadata
 
@@ -10,6 +50,18 @@ struct NoMetadata end
 const no_metadata = NoMetadata()
 
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
+
+function showdictlines(io::IO, m, suppress)
+    print(io, summary(m))
+    for (k, v) in m
+        if !in(k, suppress)
+            print(io, "\n    ", k, ": ")
+            print(IOContext(io, :compact => true), v)
+        else
+            print(io, "\n    ", k, ": <suppressed>")
+        end
+    end
+end
 
 """
     metadata(x[, k; dim])
@@ -60,15 +112,6 @@ function metadata(m::Module; dim=nothing)
         else
             return GlobalMetadata(m)
         end
-    else
-        return no_metadata
-    end
-end
-function metadata(x::MetaID; dim=nothing)
-    if dim === nothing
-        # This is known to be inbounds because MetaID cannot be constructed without also
-        # assigning a dictionary to `objectid(x)` in the parent module's global metadata dict
-        return @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
     else
         return no_metadata
     end
@@ -140,9 +183,7 @@ function metadata_type(::Type{LinearIndices{N,R}}; dim=nothing) where {N,R}
     end
 end
 
-metadata_type(::Type{T}; dim=nothing) where {P,M,T<:MetaStruct{P,M}} = M
 metadata_type(::Type{T}; dim=nothing) where {T<:Module} = GlobalMetadata
-metadata_type(::Type{T}; dim=nothing) where {T<:MetaID} = valtype(GlobalMetadata)
 
 """
     has_metadata(x[, k; dim]) -> Bool
@@ -170,19 +211,16 @@ end
 
 Generic method for attaching metadata to `x`.
 """
-attach_metadata(x, m::METADATA_TYPES=Main) = MetaStruct(x, _maybe_metaid(m))
-attach_metadata(x::AbstractArray, m::METADATA_TYPES=Main) = MetaArray(x, _maybe_metaid(m))
-function attach_metadata(x::AbstractRange, m::METADATA_TYPES=Main)
+attach_metadata(x::AbstractArray, m::METADATA_TYPES=MDict()) = MetaArray(x, m)
+function attach_metadata(x::AbstractRange, m::METADATA_TYPES=MDict())
     if known_step(x) === oneunit(eltype(x))
-        return MetaUnitRange(x, _maybe_metaid(m))
+        return MetaUnitRange(x, m)
     else
-        return MetaRange(x, _maybe_metaid(m))
+        return MetaRange(x, m)
     end
 end
-attach_metadata(x::IO, m::METADATA_TYPES=Main) = MetaIO(x, _maybe_metaid(m))
-
-attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, _maybe_metaid(m))
-
+attach_metadata(x::IO, m::METADATA_TYPES=MDict()) = MetaIO(x, m)
+attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, m)
 
 """
     share_metadata(src, dst) -> attach_metadata(dst, metadata(src))
@@ -254,9 +292,9 @@ struct ShareMetadata <: MetadataPropagation end
 
 MetadataPropagation(x) = MetadataPropagation(typeof(x))
 MetadataPropagation(::Type{T}) where {T} = MetadataPropagation(metadata_type(T))
-MetadataPropagation(::Type{<:AbstractDict}) = ShareMetadata()
-MetadataPropagation(::Type{<:NamedTuple}) = ShareMetadata()
-MetadataPropagation(::Type{NoMetadata}) = DropMetadata()
+MetadataPropagation(::Type{T}) where {T<:AbstractDict} = ShareMetadata()
+MetadataPropagation(::Type{T}) where {T<:NamedTuple} = ShareMetadata()
+MetadataPropagation(::Type{T}) where {T<:NoMetadata} = DropMetadata()
 
 function propagate_metadata(src, dst)
     return propagate_metadata(MetadataPropagation(src), src, dst)
@@ -353,8 +391,6 @@ function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
     return meta
 end
 
-_construct_meta(m::Module, kwargs::NamedTuple) = _construct_meta(MetaID(m), kwargs)
-
 function _construct_meta(meta, kwargs::NamedTuple)
     if isempty(kwargs)
         return meta
@@ -363,7 +399,75 @@ function _construct_meta(meta, kwargs::NamedTuple)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
-    print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
-    print(io, Metadata.metadata_summary(x))
+"""
+    attach_global_metadata(x, meta, m::Module)
+
+Attach metadata `meta` to the object id of `x` (`objectid(x)`) in global metadata of
+module `m`.
+"""
+function attach_global_metadata(x, meta::MDict, m::Module)
+    setindex!(metadata(m), meta, objectid(x))
+    return meta
+end
+function attach_global_metadata(x, meta, m::Module)
+    gm = MDict()
+    for (k,v) in pairs(meta)
+        gm[k] = v
+    end
+    return attach_global_metadata(x, gm, m)
+end
+
+
+"""
+    global_metadata(x, m::Module)
+    global_metadata(x, k, m::Module)
+
+Retreive metadata associated with the object id of `x` (`objectid(x)`) in stored in the
+global metadata of module `m`. If the key `k` is specified only the value associated with
+that key is returned.
+"""
+global_metadata(x, m::Module) = getindex(metadata(m), objectid(x))
+global_metadata(x, k, m::Module) = getindex(global_metadata(x, m), k)
+
+"""
+    global_metadata!(x, k, val, m::Module)
+
+Set the value of `x`'s global metadata in module `m` associated with the key `k` to `val`.
+"""
+global_metadata!(x, k, val, m::Module) = setindex!(global_metadata(x, m), val, k)
+
+"""
+    @attach_metadata(x, meta)
+
+Attach metadata `meta` to the object id of `x` (`objectid(x)`) in the current module's
+global metadata.
+
+See also: [`GlobalMetadata`](@ref)
+"""
+macro attach_metadata(x, meta)
+    return esc(:(Metadata.attach_global_metadata($x, $meta, @__MODULE__)))
+end
+
+"""
+    @metadata(x[, k])
+
+Retreive metadata associated with the object id of `x` (`objectid(x)`) in the current
+module's global metadata. If the key `k` is specified only the value associated with
+that key is returned.
+"""
+macro metadata(x)
+    return esc(:(Metadata.global_metadata($(x), @__MODULE__)))
+end
+
+macro metadata(x, k)
+    return esc(:(Metadata.global_metadata($(x), $(k), @__MODULE__)))
+end
+
+"""
+    @metadata!(x, k, val)
+
+Set the value of `x`'s global metadata associated with the key `k` to `val`.
+"""
+macro metadata!(x, k, val)
+    return esc(:(Metadata.global_metadata!($(x), $(k), $(val), @__MODULE__)))
 end

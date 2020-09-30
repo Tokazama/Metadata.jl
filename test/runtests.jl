@@ -1,15 +1,14 @@
+
 using ArrayInterface
-using Test
-using Metadata
 using Documenter
+using Metadata
+using Test
 
 using ArrayInterface: parent_type
 using Metadata: MetaArray, no_metadata, GlobalMetadata
 
 
 @test isempty(detect_ambiguities(Metadata, Base))
-
-include("metaid.jl")
 
 @testset "methods" begin
     io = IOBuffer()
@@ -187,7 +186,6 @@ end
     @test eof(mio)
     close(mio)
     @test !isopen(mio)
-    @test metadata(mio) isa Metadata.MetaID
 end
 
 @testset "ElementwiseMetaArray" begin
@@ -212,3 +210,4 @@ end
 @testset "docs" begin
     doctest(Metadata)
 end
+

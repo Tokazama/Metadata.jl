@@ -65,7 +65,40 @@ julia> mr.den
 Here we attached the same metadata to a rational number.
 Again, our metadata is now considered the properties of `mr`, but we can still access the parent's properties.
 
-## Interface For Specific Metadata Glue Types
+If the type you want to attach metadata to is mutable then each instance has a unique global identifier and you may attach metadata to a global dictionary.
+```julia
+julia> x = ones(2, 2);
+
+julia> @attach_metadata(x, meta);
+
+julia> @metadata!(x, :z, 3);
+
+julia> @metadata(x, :z)
+3
+
+julia> Pair(:x, 1) in @metadata(x)
+true
+```
+
+If users want to access all of the metadata from one structure and attach it to another they should instead use `share_metadata(src, dst)` or `copy_metadata(src, dst)`.
+```julia
+julia> mx = attach_metadata(ones(2, 2), @metadata(x));
+
+julia> mx2 = share_metadata(mx, ones(2, 2));
+
+julia> metadata(mx2) === metadata(mx)
+true
+
+julia> mx3 = copy_metadata(mx2, ones(2, 2));
+
+julia> metadata(mx3) === metadata(mx2)
+false
+
+julia> metadata(mx3) == metadata(mx2)
+true
+```
+
+# Interface For Specific Metadata Glue Types
 
 A new structure of type `T` and instance `g` that glues some data `x` to metadata `m` require the following methods:
 
@@ -82,39 +115,3 @@ A new structure of type `T` and instance `g` that glues some data `x` to metadat
 | `Base.setproperty!(x, k, val)`              | set metadata at key `k` to `val`                                      |
 | `Base.propertynames(x)`                     | return the keys/properties of `x`                                     |
 
-## Types of metadata
-
-While the metadata attached could technically be anything, by default it is a dictionary (i.e. `Metadata.MetaID`).
-```julia
-julia> mx = attach_metadata(ones(2, 2))
-2×2 attach_metadata(::Array{Float64,2}, ::Metadata.MetaID)
-  • metadata:
- 1.0  1.0
- 1.0  1.0
-
-julia> mx.x = 1;
-
-julia> mx.y = :foo;
-
-```
-
-Although `MetaID` is technically a subtype of `AbstractDict{Symbol,Any}`, its main function is to redirect everything to a module level dictionary. 
-The default module is `Main`, but we could have done `attach_metadata(ones(2, 2), MyOwnModule)`.
-In this case the raw dictionary can be accessed  with `metadata(Main, metadata(mx))`.
-Most users won't need to (and shouldn't) access these directly, but it may serve as unique tool for tool within a new package's module.
-
-If users want to access all of the metadata from one structure and attach it to another they should instead use `share_metadata(src, dst)` or `copy_metadata(src, dst)`.
-```julia
-julia> mx2 = share_metadata(mx, ones(2, 2));
-
-julia> metadata(mx2) === metadata(mx)
-true
-
-julia> mx3 = copy_metadata(mx2, ones(2, 2));
-
-julia> metadata(mx3) === metadata(mx2)
-false
-
-julia> metadata(mx3) == metadata(mx2)
-true
-```
