@@ -25,7 +25,7 @@ Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
 
 function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
     print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
-    print(io, Metadata.metadata_summary(x))
+    Metadata.metadata_summary(io, x)
 end
 
 function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}

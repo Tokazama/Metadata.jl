@@ -1,4 +1,6 @@
 
+# TODO should drop_metadata be delete_metadata
+
 const modules = Module[]
 const GLOBAL_METADATA    = gensym(:metadata)
 
@@ -39,6 +41,7 @@ Base.keys(m::GlobalMetadata) = keys(data(m))
 Base.iterate(m::GlobalMetadata) = iterate(data(m))
 Base.iterate(m::GlobalMetadata, state) = iterate(data(m), state)
 
+
 """
     NoMetadata
 
@@ -50,6 +53,8 @@ struct NoMetadata end
 const no_metadata = NoMetadata()
 
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
+
+Base.haskey(::NoMetadata, @nospecialize(k)) = false
 
 function showdictlines(io::IO, m, suppress)
     print(io, summary(m))
@@ -70,42 +75,42 @@ Returns metadata from `x`. If `k` is specified then the metadata value paired to
 `k` is returned. If `dim` is specified then the operation is performed for metadata
 specific to dimension `dim`.
 """
-function metadata(x::T; dim=nothing) where {T}
+function metadata(x::T; dim=nothing, kwargs...) where {T}
     if parent_type(T) <: T
         return no_metadata
     else
-        return metadata(parent(x); dim=dim)
+        return metadata(parent(x); dim=dim, kwargs...)
     end
 end
-function metadata(x::LinearIndices; dim=nothing)
+function metadata(x::LinearIndices; dim=nothing, kwargs...)
+    if dim === nothing
+        return no_metadata
+    else
+        return metadata(x.indices[dim]; kwargs...)
+    end
+end
+function metadata(x::CartesianIndices; dim=nothing, kwargs...)
     if dim === nothing
         return no_metadata
     else
         return metadata(x.indices[dim])
     end
 end
-function metadata(x::CartesianIndices; dim=nothing)
-    if dim === nothing
-        return no_metadata
-    else
-        return metadata(x.indices[dim])
-    end
-end
-function metadata(x::AbstractDict; dim=nothing)
+function metadata(x::AbstractDict; dim=nothing, kwargs...)
     if dim === nothing
         return x
     else
         return no_metadata
     end
 end
-function metadata(x::NamedTuple; dim=nothing)
+function metadata(x::NamedTuple; dim=nothing, kwargs...)
     if dim === nothing
         return x
     else
         return no_metadata
     end
 end
-function metadata(m::Module; dim=nothing)
+function metadata(m::Module; dim=nothing, kwargs...)
     if dim === nothing
         if isdefined(m, GLOBAL_METADATA)
             return getfield(m, GLOBAL_METADATA)::GlobalMetadata
@@ -124,7 +129,6 @@ end
         return getproperty(metadata(x; dim=dim), k)
     end
 end
-
 
 """
     metadata!(x, k, val[; dim])
@@ -211,7 +215,9 @@ end
 
 Generic method for attaching metadata to `x`.
 """
-attach_metadata(x::AbstractArray, m::METADATA_TYPES=MDict()) = MetaArray(x, m)
+function attach_metadata(x::AbstractArray, m::METADATA_TYPES=MDict())
+    return MetaArray(x, m)
+end
 function attach_metadata(x::AbstractRange, m::METADATA_TYPES=MDict())
     if known_step(x) === oneunit(eltype(x))
         return MetaUnitRange(x, m)
@@ -315,7 +321,7 @@ function _combine_meta(px::MetadataPropagation, py::DropMetadata, x, y, dst)
     return propagate_metadata(px, x, dst)
 end
 
-_combine_meta(px::DropMetadata, py::DropMetadata, x, y, dst) = dst
+_combine_meta(::DropMetadata, ::DropMetadata, x, y, dst) = dst
 
 function _combine_meta(px::CopyMetadata, py::CopyMetadata, x, y, dst)
     return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
@@ -358,23 +364,20 @@ macro defproperties(T)
 end
 
 """
-    metadata_summary(x; left_pad::Int=0, l1=lpad(`•`, 3), l2=lpad('-', 5))
+    metadata_summary([io], x)
 
 Creates summary readout of metadata for `x`.
 """
-function metadata_summary(
-    x;
-    left_pad::Int=0,
-    l1=lpad(Char(0x2022), 3),
-    l2=lpad(Char(0x002d), 5),
-)
-
-    str = lpad("$l1 metadata:", left_pad)
+metadata_summary(x) = metadata_summary(stdout, x)
+function metadata_summary(io::IO, x)
+    print(io, "$(lpad(Char(0x2022), 3)) metadata:")
     for k in metadata_keys(x)
-        str *= "\n"
-        str *= lpad("$l2 $k = $(metadata(x, k))", left_pad)
+        println(io)
+        print(io, "     ")
+        print(io, "$k")
+        print(io, " = ")
+        print(io, metadata(x, k))
     end
-    return str
 end
 
 # this is a currently informal way of changing how showarg displays metadata in
@@ -417,17 +420,16 @@ function attach_global_metadata(x, meta, m::Module)
     return attach_global_metadata(x, gm, m)
 end
 
-
 """
     global_metadata(x, m::Module)
-    global_metadata(x, k, m::Module)
+    global_metadata(x, k::Symbol, m::Module)
 
 Retreive metadata associated with the object id of `x` (`objectid(x)`) in stored in the
 global metadata of module `m`. If the key `k` is specified only the value associated with
 that key is returned.
 """
-global_metadata(x, m::Module) = getindex(metadata(m), objectid(x))
-global_metadata(x, k, m::Module) = getindex(global_metadata(x, m), k)
+global_metadata(x, m::Module) = get(metadata(m), objectid(x), no_metadata)
+global_metadata(x, k::Symbol, m::Module) = getindex(global_metadata(x, m), k)
 
 """
     global_metadata!(x, k, val, m::Module)
@@ -469,5 +471,44 @@ end
 Set the value of `x`'s global metadata associated with the key `k` to `val`.
 """
 macro metadata!(x, k, val)
-    return esc(:(Metadata.global_metadata!($(x), $(k), $(val), @__MODULE__)))
+    return esc(:(Metadata.global_metadata!($x, $k, $val, @__MODULE__)))
 end
+
+"""
+    @has_metadata(x) -> Bool
+    @has_metadata(x, k) -> Bool
+
+"""
+macro has_metadata(x)
+    return esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_metadata))
+end
+macro has_metadata(x, k)
+    return esc(:(haskey(Metadata.global_metadata($x, @__MODULE__), $k)))
+end
+
+#= TODO @share_metadata docs
+    @share_metadata(src, dst) -> attach_metadata(dst, metadata(src))
+
+Shares the metadata from `src` by attaching it to `dst`.
+The returned instance will have properties that are synchronized with `src` (i.e.
+modifying one's metadata will effect the other's metadata).
+
+See also: [`copy_metadata`](@ref).
+=#
+macro share_metadata(src, dst)
+    return esc(:(Metadata.attach_global_metadata($dst, Metadata.metadata($src), @__MODULE__)))
+end
+
+#= TODO @copy_metadata docs
+    copy_metadata(src, dst) -> attach_metadata(dst, copy(metadata(src)))
+
+Copies the the metadata from `src` and attaches it to `dst`. Note that this method
+specifically calls `deepcopy` on the metadata of `src` to ensure that changing the
+metadata of `dst` does not affect the metadata of `src`.
+
+See also: [`share_metadata`](@ref).
+=#
+macro copy_metadata(src, dst)
+    return esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
+end
+

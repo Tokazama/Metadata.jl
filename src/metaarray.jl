@@ -11,10 +11,11 @@ some `metadata`.
 julia> using Metadata
 
 julia> Metadata.MetaArray(ones(2,2), metadata=(m1 =1, m2=[1, 2]))
-2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}})
+2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}}
   • metadata:
-    - m1 = 1
-    - m2 = [1, 2]
+     m1 = 1
+     m2 = [1, 2]
+)
  1.0  1.0
  1.0  1.0
 
@@ -161,6 +162,8 @@ function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
     Base.print_array(recur_io, parent(X))
 end
 
+Base.print_array(io::IO, A::MetaArray) = Base.print_array(io, parent(A))
+
 function Base.similar(x::MetaArray, t::Type, dims)
     return Metadata.share_metadata(x, similar(parent(x), t, dims))
 end
@@ -182,10 +185,16 @@ function Base.similar(x::MetaArray, t::Type, dims::Union{Integer,AbstractUnitRan
     return Metadata.propagate_metadata(x, similar(parent(x), t, dims))
 end
 
+Base.summary(io::IO, x::MetaArray) = Base.showarg(io, x, true)
 function Base.showarg(io::IO, x::MetaArray, toplevel)
+    if toplevel
+        print(io, Base.dims2string(length.(axes(x))), " ")
+    end
     print(io, "attach_metadata(")
     Base.showarg(io, parent(x), false)
-    print(io, ", ", showarg_metadata(x), ")\n")
-    print(io, Metadata.metadata_summary(x))
+    print(io, ", ", showarg_metadata(x))
+    println(io)
+    metadata_summary(io, x)
+    print(io, "\n)")
 end
 

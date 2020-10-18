@@ -9,12 +9,24 @@ Metadata
 
 ```@docs
 Metadata.attach_metadata
+Metadata.@attach_metadata
+
 Metadata.has_metadata
+Metadata.@has_metadata
+
 Metadata.metadata
+Metadata.@metadata
+
 Metadata.metadata!
+Metadata.@metadata!
+
 Metadata.copy_metadata
-Metadata.drop_metadata
+Metadata.@copy_metadata
+
 Metadata.share_metadata
+Metadata.@share_metadata
+
+Metadata.drop_metadata
 ```
 
 ## Internal
@@ -29,3 +41,4 @@ Metadata.CopyMetadata
 Metadata.DropMetadata
 Metadata.ShareMetadata
 ```
+

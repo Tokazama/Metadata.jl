@@ -25,10 +25,11 @@ julia> x = ones(2, 2);
 julia> meta = (x = 1, y = 2);
 
 julia> mx = attach_metadata(x, meta)
-2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:x, :y),Tuple{Int64,Int64}})
+2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:x, :y),Tuple{Int64,Int64}}
   • metadata:
-    - x = 1
-    - y = 2
+     x = 1
+     y = 2
+)
  1.0  1.0
  1.0  1.0
 
@@ -50,8 +51,8 @@ The rest are bound to `Metadata.MetaStruct`.
 julia> mr = attach_metadata(3//5, meta)
 attach_metadata(3//5, ::NamedTuple{(:x, :y),Tuple{Int64,Int64}})
   • metadata:
-    - x = 1
-    - y = 2
+     x = 1
+     y = 2
 
 julia> propertynames(mr)
 (:x, :y)

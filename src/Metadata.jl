@@ -14,6 +14,9 @@ export
     @attach_metadata,
     @metadata,
     @metadata!,
+    @has_metadata,
+    @copy_metadata,
+    @share_metadata,
     attach_eachmeta,
     attach_metadata,
     copy_metadata,
@@ -61,3 +64,4 @@ end
 @defproperties MetaIO
 
 end # module
+
