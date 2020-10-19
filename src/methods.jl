@@ -478,6 +478,8 @@ end
     @has_metadata(x) -> Bool
     @has_metadata(x, k) -> Bool
 
+Does `x` have metadata stored in the curren modules' global metadata? Checks for the
+presenece of the key `k` if specified.
 """
 macro has_metadata(x)
     return esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_metadata))
@@ -486,28 +488,29 @@ macro has_metadata(x, k)
     return esc(:(haskey(Metadata.global_metadata($x, @__MODULE__), $k)))
 end
 
-#= TODO @share_metadata docs
-    @share_metadata(src, dst) -> attach_metadata(dst, metadata(src))
+"""
+    @share_metadata(src, dst) -> @attach_metadata(@metadata(src), dst)
 
-Shares the metadata from `src` by attaching it to `dst`.
-The returned instance will have properties that are synchronized with `src` (i.e.
-modifying one's metadata will effect the other's metadata).
+Shares the metadata from `src` by attaching it to `dst`. This assumes that metadata
+for `src` is stored in a global dictionary (i.e. not part of `src`'s structure) and
+attaches it to `dst` through a global reference within the module.
 
-See also: [`copy_metadata`](@ref).
-=#
+See also: [`@copy_metadata`](@ref), [`share_metadata`](@ref)
+"""
 macro share_metadata(src, dst)
-    return esc(:(Metadata.attach_global_metadata($dst, Metadata.metadata($src), @__MODULE__)))
+    return esc(:(Metadata.attach_global_metadata($dst, Metadata.global_metadata($src, @__MODULE__), @__MODULE__)))
 end
 
-#= TODO @copy_metadata docs
-    copy_metadata(src, dst) -> attach_metadata(dst, copy(metadata(src)))
+"""
+    @copy_metadata(src, dst) -> attach_metadata(dst, copy(metadata(src)))
 
-Copies the the metadata from `src` and attaches it to `dst`. Note that this method
-specifically calls `deepcopy` on the metadata of `src` to ensure that changing the
-metadata of `dst` does not affect the metadata of `src`.
 
-See also: [`share_metadata`](@ref).
-=#
+Copies the metadata from `src` by attaching it to `dst`. This assumes that metadata
+for `src` is stored in a global dictionary (i.e. not part of `src`'s structure) and
+attaches a new copy to `dst` through a global reference within the module.
+
+See also: [`@share_metadata`](@ref), [`copy_metadata`](@ref)
+"""
 macro copy_metadata(src, dst)
     return esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
 end
