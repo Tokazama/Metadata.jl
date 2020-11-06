@@ -39,6 +39,15 @@ julia> mx.x
 julia> mx.y
 2
 
+julia> attach_metadata(x, (x = 1, y = 2, suppress= [:x]))
+2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:x, :y, :suppress),Tuple{Int64,Int64,Array{Symbol,1}}}
+  • metadata:
+     x = <suppressed>
+     y = 2
+)
+ 1.0  1.0
+ 1.0  1.0
+
 ```
 
 There are two things you should notice from the previous example:

@@ -36,3 +36,12 @@ function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}
     end
 end
 
+Base.copy(x::MetaStruct) = propagate_metadata(x, deepcopy(parent(x)))
+
+@_define_function_no_prop(Base,  ==, MetaStruct, MetaStruct)
+@_define_function_no_prop_first(Base,  ==, MetaStruct, Any)
+@_define_function_no_prop_last(Base,  ==, Any, MetaStruct)
+@_define_function_no_prop_first(Base,  ==, MetaStruct, Missing)
+@_define_function_no_prop_last(Base,  ==, Missing, MetaStruct)
+@_define_function_no_prop_first(Base,  ==, MetaStruct, WeakRef)
+@_define_function_no_prop_last(Base,  ==, WeakRef, MetaStruct)

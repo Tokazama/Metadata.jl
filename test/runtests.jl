@@ -23,6 +23,25 @@ using Metadata: MetaArray, no_metadata, GlobalMetadata
     @test @inferred(metadata((x =1,); dim=1)) == no_metadata
     @test @inferred(metadata(Main)) isa GlobalMetadata
     @test @inferred(metadata(Main; dim=1)) == no_metadata
+    x = rand(4)
+    m = metadata(Main)
+    @test isempty(m)
+    get!(m, objectid(x), Dict{Symbol,Any}())
+    @test !isempty(m)
+    @test first(keys(m)) == objectid(x)
+    @test m[objectid(x)] == Dict{Symbol,Any}()
+    @test length(m) == 1
+    p, state = iterate(m)
+    @test p == (objectid(x) => Dict{Symbol,Any}())
+    @test iterate(m, state) === nothing
+end
+
+@testset "MetaStruct" begin
+    x = Metadata.MetaStruct(2, (m1 =1, m2=[1, 2]))
+    y = Metadata.MetaStruct((m1 =1, m2=[1, 2]), (m1 =1, m2=[1, 2]))
+    @test eltype(x) <: Int
+    @test @inferred(copy(x)) === 2
+    @test @inferred(copy(y)) == y
 end
 
 @testset "MetaArray" begin
@@ -52,6 +71,7 @@ end
     @test @inferred(metadata(mx)) == meta
     @test @inferred(has_metadata(mx))
     @test @inferred(has_metadata(mx, :m1))
+    @test @inferred(!has_metadata(parent(mx), :m1))
     @test metadata(mx, :m1) == 1
     @test Metadata.metadata_keys(mx) == (:m1, :m2)
     @test mx[1] == 1

@@ -117,10 +117,10 @@ function attach_eachmeta(x::AbstractVector, m::NamedTuple)
     return ElementwiseMetaArray(map(i -> unsafe_attach_eachmeta(x, m, i), eachindex(x, m...)))
 end
 
-@_define_single_function_no_prop(Base, size, ElementwiseMetaArray)
-@_define_single_function_no_prop(Base, size, MetaView)
-@_define_single_function_no_prop(Base, axes, ElementwiseMetaArray)
-@_define_single_function_no_prop(Base, axes, MetaView)
+@_define_function_no_prop(Base, size, ElementwiseMetaArray)
+@_define_function_no_prop(Base, size, MetaView)
+@_define_function_no_prop(Base, axes, ElementwiseMetaArray)
+@_define_function_no_prop(Base, axes, MetaView)
 
 
 # TODO function drop_metadata(x::ElementwiseMetaArray) end

@@ -56,18 +56,6 @@ Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
 Base.haskey(::NoMetadata, @nospecialize(k)) = false
 
-function showdictlines(io::IO, m, suppress)
-    print(io, summary(m))
-    for (k, v) in m
-        if !in(k, suppress)
-            print(io, "\n    ", k, ": ")
-            print(IOContext(io, :compact => true), v)
-        else
-            print(io, "\n    ", k, ": <suppressed>")
-        end
-    end
-end
-
 """
     metadata(x[, k; dim])
 
@@ -323,21 +311,21 @@ end
 
 _combine_meta(::DropMetadata, ::DropMetadata, x, y, dst) = dst
 
-function _combine_meta(px::CopyMetadata, py::CopyMetadata, x, y, dst)
+function _combine_meta(::CopyMetadata, ::CopyMetadata, x, y, dst)
     return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
 end
 
-function _combine_meta(px::ShareMetadata, py::CopyMetadata, x, y, dst)
+function _combine_meta(::ShareMetadata, ::CopyMetadata, x, y, dst)
     return attach_metadata(append!(deepcopy(metadata(y)), metadata(x)), dst)
 end
 
-function _combine_meta(px::CopyMetadata, py::ShareMetadata, x, y, dst)
+function _combine_meta(::CopyMetadata, ::ShareMetadata, x, y, dst)
     return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
 end
 
 # TODO need to consider what should happen here because non mutating functions
 # will mutate metadata if both combine and share
-function _combine_meta(px::ShareMetadata, py::ShareMetadata, x, y, dst)
+function _combine_meta(::ShareMetadata, ::ShareMetadata, x, y, dst)
     return attach_metadata(append!(metadata(x), metadata(y)), dst)
 end
 
@@ -371,12 +359,29 @@ Creates summary readout of metadata for `x`.
 metadata_summary(x) = metadata_summary(stdout, x)
 function metadata_summary(io::IO, x)
     print(io, "$(lpad(Char(0x2022), 3)) metadata:")
-    for k in metadata_keys(x)
-        println(io)
-        print(io, "     ")
-        print(io, "$k")
-        print(io, " = ")
-        print(io, metadata(x, k))
+    if has_metadata(x, :suppress)
+        suppress = metadata(x, :suppress)
+        for k in metadata_keys(x)
+            if k !== :suppress
+                println(io)
+                print(io, "     ")
+                print(io, "$k")
+                print(io, " = ")
+                if in(k, suppress)
+                    print(io, "<suppressed>")
+                else
+                    print(io, metadata(x, k))
+                end
+            end
+        end
+    else
+        for k in metadata_keys(x)
+            println(io)
+            print(io, "     ")
+            print(io, "$k")
+            print(io, " = ")
+            print(io, metadata(x, k))
+        end
     end
 end
 

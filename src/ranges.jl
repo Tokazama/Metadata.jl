@@ -72,14 +72,14 @@ Base.parent(r::MetaUnitRange) = getfield(r, :parent)
 ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
 metadata_type(::Type{<:MetaUnitRange{<:Any,<:Any,M}}) where {M} = M
 
-@_define_single_function_no_prop(Base, first, MetaRange)
-@_define_single_function_no_prop(Base, step, MetaRange)
-@_define_single_function_no_prop(Base, last, MetaRange)
-@_define_single_function_no_prop(Base, length, MetaRange)
-@_define_single_function_no_prop(Base, first, MetaUnitRange)
-@_define_single_function_no_prop(Base, step, MetaUnitRange)
-@_define_single_function_no_prop(Base, last, MetaUnitRange)
-@_define_single_function_no_prop(Base, length, MetaUnitRange)
+@_define_function_no_prop(Base, first, MetaRange)
+@_define_function_no_prop(Base, step, MetaRange)
+@_define_function_no_prop(Base, last, MetaRange)
+@_define_function_no_prop(Base, length, MetaRange)
+@_define_function_no_prop(Base, first, MetaUnitRange)
+@_define_function_no_prop(Base, step, MetaUnitRange)
+@_define_function_no_prop(Base, last, MetaUnitRange)
+@_define_function_no_prop(Base, length, MetaUnitRange)
 
 Base.@propagate_inbounds function Base.getindex(@nospecialize(r::MetaUnitRange), i::Integer)
     return getindex(parent(r), i)
