@@ -359,7 +359,7 @@ Creates summary readout of metadata for `x`.
 metadata_summary(x) = metadata_summary(stdout, x)
 function metadata_summary(io::IO, x)
     print(io, "$(lpad(Char(0x2022), 3)) metadata:")
-    if has_metadata(x, :suppress)
+    if has_metadata(x, :suppress) && eltype(metadata(x, :suppress)) <: Symbol
         suppress = metadata(x, :suppress)
         for k in metadata_keys(x)
             if k !== :suppress

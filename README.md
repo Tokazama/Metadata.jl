@@ -50,9 +50,10 @@ julia> attach_metadata(x, (x = 1, y = 2, suppress= [:x]))
 
 ```
 
-There are two things you should notice from the previous example:
-1. The display is nearly identical to the parent `x`. The only addition is a list of the metadata and the argument used to bind the `x` and `meta`.
+There are three things you should notice from the previous example:
+1. The display is nearly identical to how the parent `x` would be printed. The only addition is a list of the metadata and the argument used to bind the `x` and `meta`.
 2. We can access the metadata as if they were properties.
+3. We can suppress the printing of any value if `metadata(x, :suppress)` returns a collection of symbols containing that value.
 
 There are a limited number of interfaces that require special types for binding metadata.
 The rest are bound to `Metadata.MetaStruct`.
