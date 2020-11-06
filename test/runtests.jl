@@ -103,11 +103,14 @@ end
 
     @testset "constructors" begin
         m = Dict{Symbol,Int}(:x=>1,:y=>2)
-        x = @inferred(Metadata.MetaArray{Int,2,Dict{Symbol,Any},Array{Int,2}}(undef, (2,2), metadata=meta))
+        x = @inferred(Metadata.MetaArray{Int,2,Dict{Symbol,Any},Array{Int,2}}(undef, (2,2), metadata=m))
         y = @inferred(Metadata.MetaArray{Int,2}(undef, (2,2); metadata=m))
         x[:] = 1:4
         y[:] = 1:4
         @test x == y == [1 3; 2 4]
+
+        @test metadata_type(Metadata.MetaArray{Int,2,Dict{Symbol,Any},Array{Int,2}}(parent(x), m)) <: Dict{Symbol,Any}
+        @test metadata_type(Metadata.MetaArray{Float64,2,Dict{Symbol,Any},Array{Int,2}}(parent(x), m)) <: Dict{Symbol,Any}
 
         @test eltype(@inferred(Metadata.MetaArray{Float64,2,Dict{Symbol,Any}}([1 3; 2 4], meta))) <: Float64
         @test eltype(@inferred(Metadata.MetaArray{Float64,2}([1 3; 2 4], meta))) <: Float64

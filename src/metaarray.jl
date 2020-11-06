@@ -182,4 +182,3 @@ function Base.showarg(io::IO, x::MetaArray, toplevel)
     metadata_summary(io, x)
     print(io, "\n)")
 end
-
