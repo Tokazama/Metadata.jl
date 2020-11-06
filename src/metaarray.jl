@@ -46,18 +46,18 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
         return MetaArray{T,N,M,A}(a, _construct_meta(metadata, values(kwargs)))
     end
 
-    function MetaArray{T,N,M,A}(args...; metadata=Main, kwargs...) where {T,N,M,A}
+    function MetaArray{T,N,M,A}(args...; metadata=MDict(), kwargs...) where {T,N,M,A}
         return MetaArray{T,N,M,A}(A(args...); metadata=metadata, kwargs...)
     end
 
     ###
     ### MetaArray{T,N,M}
     ###
-    function MetaArray{T,N,M}(a::A, m::M) where {T,N,M,A<:AbstractArray}
-        if eltype(A) <: T
-            return MetaArray{T,N,M,A}(a, m)
+    function MetaArray{T,N,M}(x::AbstractArray, m::M) where {T,N,M}
+        if eltype(x) <: T
+            return MetaArray{T,N,M,typeof(x)}(x, m)
         else
-            return MetaArray{T,N,M}(convert(AbstractArray{T}, a), m)
+            return MetaArray{T,N,M}(convert(AbstractArray{T}, x), m)
         end
     end
 
@@ -66,25 +66,24 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     ###
     MetaArray{T,N}(a::AbstractArray, m::M) where {T,N,M} = MetaArray{T,N,M}(a, m)
 
-    function MetaArray{T,N}(a::AbstractArray; metadata=Main, kwargs...) where {T,N}
+    function MetaArray{T,N}(a::AbstractArray; metadata=MDict(), kwargs...) where {T,N}
         return MetaArray{T,N}(a, _construct_meta(metadata, values(kwargs)))
     end
 
-    function MetaArray{T,N}(args...; metadata=Main, kwargs...) where {T,N}
+    function MetaArray{T,N}(args...; metadata=MDict(), kwargs...) where {T,N}
         return MetaArray{T,N}(Array{T,N}(args...); metadata=metadata, kwargs...)
     end
-
 
     ###
     ### MetArray{T}
     ###
-    function MetaArray{T}(args...; metadata=Main, kwargs...) where {T}
+    function MetaArray{T}(args...; metadata=MDict(), kwargs...) where {T}
         return MetaArray{T}(Array{T}(args...); metadata=metadata, kwargs...)
     end
 
     MetaArray{T}(a::AbstractArray, m::M) where {T,M} = MetaArray{T,ndims(a)}(a, m)
 
-    function MetaArray{T}(a::AbstractArray; metadata=Main, kwargs...) where {T}
+    function MetaArray{T}(a::AbstractArray; metadata=MDict(), kwargs...) where {T}
         return MetaArray{T,ndims(a)}(a; metadata=metadata, kwargs...)
     end
 
@@ -93,7 +92,7 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     ###
     MetaArray(v::AbstractArray{T,N}, m::M) where {T,N,M} = new{T,N,M,typeof(v)}(v, m)
 
-    function MetaArray(a::AbstractArray; metadata=Main, kwargs...)
+    function MetaArray(a::AbstractArray; metadata=MDict(), kwargs...)
         return MetaArray{eltype(a)}(a; metadata=metadata, kwargs...)
     end
 end
@@ -125,20 +124,14 @@ Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
 #function Base.show(io::IO, ::MIME"text/plain", A::MetaArray) end
 
 function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
-    #if isempty(X) && (get(io, :compact, false) || X isa AbstractVector)
-    #    return show(io, X)
-    #end
-    # 0) show summary before setting :compact
     summary(io, X)
     isempty(X) && return
     Base.show_circular(io, X) && return
 
-    # 1) compute new IOContext
     if !haskey(io, :compact) && length(axes(X, 2)) > 1
         io = IOContext(io, :compact => true)
     end
     if get(io, :limit, false) && eltype(X) === Method
-        # override usual show method for Vector{Method}: don't abbreviate long lists
         io = IOContext(io, :limit => false)
     end
 
@@ -148,16 +141,8 @@ function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
         println(io)
     end
 
-    # 2) update typeinfo
-    #
-    # it must come after printing the summary, which can exploit :typeinfo itself
-    # (e.g. views)
-    # we assume this function is always called from top-level, i.e. that it's not nested
-    # within another "show" method; hence we always print the summary, without
-    # checking for current :typeinfo (this could be changed in the future)
     io = IOContext(io, :typeinfo => eltype(X))
 
-    # 2) show actual content
     recur_io = IOContext(io, :SHOWN_SET => X)
     Base.print_array(recur_io, parent(X))
 end

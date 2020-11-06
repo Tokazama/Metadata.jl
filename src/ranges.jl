@@ -101,10 +101,15 @@ for T in (MetaRange, MetaUnitRange)
             return propagate_metadata(r, getindex(parent(r), inds))
         end
         function Base.show(io::IO, m::MIME"text/plain", x::$T)
-            print(io, "attach_metadata(")
-            print(io, parent(x))
-            print(io, ", ", Metadata.showarg_metadata(x), ")\n")
-            Metadata.metadata_summary(io, x)
+
+            if haskey(io, :compact)
+                show(io, parent(x))
+            else
+                print(io, "attach_metadata(")
+                print(io, parent(x))
+                print(io, ", ", Metadata.showarg_metadata(x), ")\n")
+                Metadata.metadata_summary(io, x)
+            end
         end
     end
 end
@@ -120,3 +125,4 @@ end
 end
 Base.getindex(r::MetaRange, ::Colon) = copy(r)
 Base.getindex(r::MetaUnitRange, ::Colon) = copy(r)
+

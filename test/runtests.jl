@@ -80,6 +80,21 @@ end
     @test IndexStyle(typeof(mx)) isa IndexLinear
     @test @inferred(size(mx)) == (4, 4)
     @test @inferred(axes(mx)) == (1:4, 1:4)
+
+    @testset "constructors" begin
+        m = Dict{Symbol,Int}(:x=>1,:y=>2)
+        x = @inferred(Metadata.MetaArray{Int,2,Dict{Symbol,Any},Array{Int,2}}(undef, (2,2), metadata=meta))
+        y = @inferred(Metadata.MetaArray{Int,2}(undef, (2,2); metadata=m))
+        x[:] = 1:4
+        y[:] = 1:4
+        @test x == y == [1 3; 2 4]
+
+        @test eltype(@inferred(Metadata.MetaArray{Float64,2,Dict{Symbol,Any}}([1 3; 2 4], meta))) <: Float64
+        @test eltype(@inferred(Metadata.MetaArray{Float64,2}([1 3; 2 4], meta))) <: Float64
+        @test eltype(@inferred(Metadata.MetaArray{Float64}([1 3; 2 4], meta))) <: Float64
+        @test metadata(copy(x)) == metadata(x)
+        @test metadata(copy(x)) !== metadata(x)
+    end
 end
 
 @testset "MetaRange" begin

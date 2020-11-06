@@ -41,7 +41,7 @@ include("io.jl")
 
 for T in (MetaIO, MetaStruct, MetaArray, MetaRange, MetaUnitRange)
     @eval begin
-        @inline function Metadata.metadata(x::$T; dim=nothing)
+        @inline function Metadata.metadata(x::$T; dim=nothing, kwargs...)
             if dim === nothing
                 return getfield(x, :metadata)
             else
