@@ -5,6 +5,7 @@ struct MetaIO{T<:IO,M} <: IO
 end
 
 Base.parent(x::MetaIO) = getfield(x, :parent)
+ArrayInterface.parent_type(::Type{T}) where {IOType,T<:MetaIO{IOType}} = IOType
 
 @_define_function_no_prop(Base, isreadonly, MetaIO)
 @_define_function_no_prop(Base, isreadable, MetaIO)
@@ -40,3 +41,12 @@ Base.parent(x::MetaIO) = getfield(x, :parent)
 function Base.write(@nospecialize(s::MetaIO), x::SubArray{T,N,P,I,L} where L where I where P<:Array) where {T, N}
     return write(parent(s), x)
 end
+
+@inline function metadata_type(::Type{T}; dim=nothing) where {IOType,M,T<:MetaIO{IOType,M}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(IOType; dim=dim)
+    end
+end
+

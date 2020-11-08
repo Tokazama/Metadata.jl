@@ -97,7 +97,13 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     end
 end
 
-metadata_type(::Type{MetaArray{T,N,M,A}}) where {T,N,M,A} = M
+@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(A; dim=dim)
+    end
+end
 
 Base.parent(A::MetaArray) = getfield(A, :parent)
 
@@ -182,3 +188,4 @@ function Base.showarg(io::IO, x::MetaArray, toplevel)
     metadata_summary(io, x)
     print(io, "\n)")
 end
+

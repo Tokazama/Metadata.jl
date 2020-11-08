@@ -9,6 +9,7 @@ using ArrayInterface
 using ArrayInterface: parent_type, known_first, known_last, known_step
 
 using Base: @propagate_inbounds, OneTo
+using Test
 
 export
     @attach_metadata,
@@ -62,6 +63,49 @@ end
 @defproperties ElementwiseMetaArray
 
 @defproperties MetaIO
+
+"""
+    test_wrapper(::Type{WrapperType}, x::X)
+
+Tests the metadata interface for a metadata wrapper (`WrapperType`) for binding instances
+of type `X`. It returns the results of `attach_metadata(x, Dict{Symbol,Any}())` for further
+testing.
+"""
+function test_wrapper(::Type{WrapperType}, data) where {WrapperType}
+    m = Dict{Symbol,Any}()
+    x = attach_metadata(data, m)
+    @test x isa WrapperType
+
+    @test metadata_type(x) <: typeof(m)
+    @test metadata_type(typeof(x)) <: typeof(m)
+
+    @test has_metadata(x)
+    @test has_metadata(typeof(x))
+
+    @test parent_type(x) <: typeof(data)
+    @test parent_type(typeof(x)) <: typeof(data)
+    @test parent(x) === data
+
+    @test isempty(metadata(x))
+    metadata!(x, :m1, 1)
+    @test metadata(x, :m1) == 1
+
+    y = share_metadata(x, ones(2, 2))
+    @test y isa Metadata.MetaArray
+    @test metadata(x) === metadata(y)
+
+    y = copy_metadata(x, ones(2, 2))
+    @test y isa Metadata.MetaArray
+    @test metadata(x) == metadata(y)
+    @test metadata(x) !== metadata(y)
+
+    y = drop_metadata(x)
+    @test !has_metadata(y)
+    @test y == data
+
+    empty!(metadata(x))
+    return x
+end
 
 end # module
 

@@ -122,12 +122,7 @@ end
 
 @testset "MetaRange" begin
     x = 1:1:10
-    meta = (m1 =1, m2=[1, 2])
-    mx = attach_metadata(x, meta)
-    @test parent_type(typeof(mx)) <: typeof(x)
-    @test metadata(mx) == meta
-    @test metadata(mx, :m1) == 1
-    @test Metadata.metadata_keys(mx) == (:m1, :m2)
+    mx = Metadata.test_wrapper(Metadata.MetaRange, x)
     @test mx[1] == 1
     @test mx[1:2] == [1, 2]
     @test metadata(mx[1:2]) == metadata(mx)
@@ -136,13 +131,7 @@ end
 
 @testset "MetaUnitRange" begin
     x = 1:10
-    meta = (m1 =1, m2=[1, 2])
-    # TODO once new version of ArrayInterface comes out use this instead of direct constructor
-    # mx = attach_metadata(x, meta)
-    mx = Metadata.MetaUnitRange(x, meta)
-    @test metadata(mx) == meta
-    @test metadata(mx, :m1) == 1
-    @test Metadata.metadata_keys(mx) == (:m1, :m2)
+    mx = Metadata.test_wrapper(Metadata.MetaUnitRange, x)
     @test mx[1] == 1
     @test mx[1:2] == [1, 2]
     @test metadata(mx[1:2]) == metadata(mx)
@@ -157,8 +146,7 @@ end
     @test mx[:] == x[:]
     @test eltype(Metadata.MetaUnitRange{UInt}(1:10, nothing)) <: UInt
     @test_throws ArgumentError Metadata.MetaUnitRange(1:3:10, nothing)
-    @test Metadata.drop_metadata(mx) === x
-    @test Metadata.copy_metadata(mx, x) == mx
+    Metadata.test_wrapper(Metadata.MetaUnitRange, 1:10)
 end
 
 @testset "LinearIndices/CartesianIndices" begin
@@ -191,7 +179,8 @@ end
 
 @testset "MetaIO" begin
     io = IOBuffer()
-    mio = attach_metadata(io)
+    mio = Metadata.test_wrapper(Metadata.MetaIO, io)
+
     @test position(mio) == 0
     @test !isreadonly(mio)
     @test isreadable(mio)

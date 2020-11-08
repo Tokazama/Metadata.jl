@@ -27,9 +27,12 @@ Metadata.share_metadata
 Metadata.@share_metadata
 
 Metadata.drop_metadata
+
+Metadata.test_wrapper
 ```
 
 ## Internal
+
 ```@docs
 Metadata.NoMetadata
 Metadata.metadata_summary

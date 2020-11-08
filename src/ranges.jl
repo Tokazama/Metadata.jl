@@ -25,7 +25,13 @@ end
 
 Base.parent(r::MetaRange) = getfield(r, :parent)
 ArrayInterface.parent_type(::Type{<:MetaRange{<:Any,P,<:Any}}) where {P} = P
-metadata_type(::Type{<:MetaRange{<:Any,<:Any,M}}) where {M} = M
+@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaRange{<:Any,R,M}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(R; dim=dim)
+    end
+end
 
 """
     MetaUnitRange(x::AbstractUnitRange, meta)
@@ -70,7 +76,14 @@ end
 
 Base.parent(r::MetaUnitRange) = getfield(r, :parent)
 ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
-metadata_type(::Type{<:MetaUnitRange{<:Any,<:Any,M}}) where {M} = M
+@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaUnitRange{<:Any,R,M}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(R; dim=dim)
+    end
+end
+
 
 @_define_function_no_prop(Base, first, MetaRange)
 @_define_function_no_prop(Base, step, MetaRange)
@@ -125,4 +138,7 @@ end
 end
 Base.getindex(r::MetaRange, ::Colon) = copy(r)
 Base.getindex(r::MetaUnitRange, ::Colon) = copy(r)
+
+Base.copy(x::MetaUnitRange) = copy_metadata(x, copy(parent(x)))
+Base.copy(x::MetaRange) = copy_metadata(x, copy(parent(x)))
 
