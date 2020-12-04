@@ -1,8 +1,10 @@
 # Metadata.jl
 
-[![Build Status](https://travis-ci.com/Tokazama/Metadata.jl.svg?branch=master)](https://travis-ci.com/Tokazama/Metadata.jl)
+
+![CI](https://github.com/Tokazama/Metadata.jl/workflows/CI/badge.svg)
 [![stable-docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://Tokazama.github.io/Metadata.jl/stable)
 [![dev-docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://Tokazama.github.io/Metadata.jl/dev)
+[![codecov](https://codecov.io/gh/Tokazama/Metadata.jl/branch/master/graph/badge.svg?token=hx7hbIIoxE)](https://codecov.io/gh/Tokazama/Metadata.jl)
 
 # Introduction
 
