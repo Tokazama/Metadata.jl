@@ -330,7 +330,7 @@ function _combine_meta(::ShareMetadata, ::ShareMetadata, x, y, dst)
 end
 
 macro defproperties(T)
-    quote
+    esc(quote
         @inline function Base.getproperty(x::$T, k::Symbol)
             if hasproperty(parent(x), k)
                 return getproperty(parent(x), k)
@@ -348,7 +348,7 @@ macro defproperties(T)
         end
 
         @inline Base.propertynames(x::$T) = Metadata.metadata_keys(x)
-    end
+    end)
 end
 
 """
@@ -415,6 +415,13 @@ module `m`.
 """
 function attach_global_metadata(x, meta::MDict, m::Module)
     setindex!(metadata(m), meta, objectid(x))
+    if Base.ismutable(x)
+    elseif Base.isstructtype(typeof(x))
+        _attach_global_metadata_mutable(x, meta, m)
+    else
+        # TODO should this be a warning that global dictionaries must be explictly deleted?
+        nothing
+    end
     return meta
 end
 function attach_global_metadata(x, meta, m::Module)
@@ -423,6 +430,33 @@ function attach_global_metadata(x, meta, m::Module)
         gm[k] = v
     end
     return attach_global_metadata(x, gm, m)
+end
+
+# iterate through fields until a mutable struct is found. Then use that field to
+# enable the finalizer.
+function _attach_global_metadata_mutable(x, xfield, m)
+    i = 1
+    no_finalizer = true
+    while (no_finalizer || i < fieldcount(xfield))
+        field_i = getfield(xfield, i)
+        if Base.ismutable()
+            _global_metadata_finalizer(x, field_i, m)
+            no_finalizer = false
+        elseif Base.isstructtype(typeof(field_i))
+            no_finalizer = _attach_global_metadata_mutable(x, field_i, m)
+        else
+            i += 1
+        end
+    end
+    return no_finalizer
+end
+
+delete_global_metadata!(x, m::Module) = delete!(metadata(m), objectid(x))
+
+function _global_metadata_finalizer(x, xfield, m::Module)
+    finalizer(xfield) do _
+        @async delete_global_metadata!(x, m)
+    end
 end
 
 """
@@ -434,7 +468,7 @@ global metadata of module `m`. If the key `k` is specified only the value associ
 that key is returned.
 """
 global_metadata(x, m::Module) = get(metadata(m), objectid(x), no_metadata)
-global_metadata(x, k::Symbol, m::Module) = getindex(global_metadata(x, m), k)
+global_metadata(x, k, m::Module) = getindex(global_metadata(x, m), k)
 
 """
     global_metadata!(x, k, val, m::Module)
