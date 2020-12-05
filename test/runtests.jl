@@ -263,7 +263,9 @@ end
     @test @metadata(x, :y) == 2
 end
 
-@testset "docs" begin
-    doctest(Metadata)
+if VERSION < v"1.6"
+    @testset "docs" begin
+        doctest(Metadata)
+    end
 end
 
