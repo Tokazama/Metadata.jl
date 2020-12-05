@@ -38,9 +38,10 @@ Base.length(m::GlobalMetadata) = length(data(m))
 
 Base.keys(m::GlobalMetadata) = keys(data(m))
 
+Base.delete!(m::GlobalMetadata, k::UInt) = delete!(data(m), k)
+
 Base.iterate(m::GlobalMetadata) = iterate(data(m))
 Base.iterate(m::GlobalMetadata, state) = iterate(data(m), state)
-
 
 """
     NoMetadata
@@ -415,15 +416,12 @@ module `m`.
 """
 function attach_global_metadata(x, meta::MDict, m::Module)
     setindex!(metadata(m), meta, objectid(x))
-    if Base.ismutable(x)
-    elseif Base.isstructtype(typeof(x))
-        _attach_global_metadata_mutable(x, meta, m)
-    else
-        # TODO should this be a warning that global dictionaries must be explictly deleted?
-        nothing
+    if _attach_global_metadata(x, x, m)
+        @warn "Cannot create finalizer for $(typeof(x)). Global dictionary must be manually deleted."
     end
     return meta
 end
+
 function attach_global_metadata(x, meta, m::Module)
     gm = MDict()
     for (k,v) in pairs(meta)
@@ -432,15 +430,49 @@ function attach_global_metadata(x, meta, m::Module)
     return attach_global_metadata(x, gm, m)
 end
 
+function _attach_global_metadata(x, xfield, m::Module)
+    if ismutable(x)
+        _assign_global_metadata_finalizer(x, xfield, m)
+        there_is_no_finalizer = false
+    elseif isstructtype(typeof(x))
+        there_is_no_finalizer = true
+        N = fieldcount(typeof(x))
+        if N !== 0
+            i = 1
+            while (there_is_no_finalizer && i <= N)
+                there_is_no_finalizer = _assign_global_metadata_finalizer(x, getfield(xfield, i), m)
+                i += 1
+            end
+        end
+    else
+        there_is_no_finalizer = true
+    end
+    return there_is_no_finalizer
+end
+
+function _assign_global_metadata_finalizer(x, xfield, m::Module)
+    if Base.ismutable(xfield)
+        finalizer(xfield) do _
+            @async delete_global_metadata!(x, m)
+        end
+        return false
+    else
+        return true
+    end
+end
+
 # iterate through fields until a mutable struct is found. Then use that field to
-# enable the finalizer.
+#= enable the finalizer.
 function _attach_global_metadata_mutable(x, xfield, m)
     i = 1
     no_finalizer = true
-    while (no_finalizer || i < fieldcount(xfield))
+    for i in 1:fieldcount(typeof(xfield))
+    end
+
+    while (no_finalizer || i < fieldcount(typeof(xfield)))
         field_i = getfield(xfield, i)
-        if Base.ismutable()
-            _global_metadata_finalizer(x, field_i, m)
+        if Base.ismutable(field_i)
+            end
             no_finalizer = false
         elseif Base.isstructtype(typeof(field_i))
             no_finalizer = _attach_global_metadata_mutable(x, field_i, m)
@@ -450,14 +482,9 @@ function _attach_global_metadata_mutable(x, xfield, m)
     end
     return no_finalizer
 end
+=#
 
 delete_global_metadata!(x, m::Module) = delete!(metadata(m), objectid(x))
-
-function _global_metadata_finalizer(x, xfield, m::Module)
-    finalizer(xfield) do _
-        @async delete_global_metadata!(x, m)
-    end
-end
 
 """
     global_metadata(x, m::Module)

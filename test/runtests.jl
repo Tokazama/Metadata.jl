@@ -234,6 +234,35 @@ end
     @test mxview[1:2][2] === 2.0
 end
 
+@testset "GlobalMetadata" begin
+    x = ones(2, 2)
+    meta = (x = 1, y = 2)
+    @attach_metadata(x, meta)
+    @test @metadata(x, :x) == 1
+    @test @metadata(x, :y) == 2
+
+    struct MyType{X}
+        x::X
+    end
+
+    x = MyType(ones(2,2))
+    GC.gc()
+    @test @metadata(x) == Metadata.no_metadata  # test finalizer
+
+    @attach_metadata(x, meta)
+    @test @metadata(x, :x) == 1
+    @test @metadata(x, :y) == 2
+    x = MyType(1)
+    GC.gc()
+    @test @metadata(x) == Metadata.no_metadata  # test finalizer on nested mutables
+    @test_logs(
+        (:warn, "Cannot create finalizer for MyType{Int64}. Global dictionary must be manually deleted."),
+        @attach_metadata(x, meta)
+    )
+    @test @metadata(x, :x) == 1
+    @test @metadata(x, :y) == 2
+end
+
 @testset "docs" begin
     doctest(Metadata)
 end
