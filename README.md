@@ -27,7 +27,7 @@ julia> x = ones(2, 2);
 julia> meta = (x = 1, y = 2);
 
 julia> mx = attach_metadata(x, meta)
-2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:x, :y),Tuple{Int64,Int64}}
+2×2 attach_metadata(::Matrix{Float64}, ::NamedTuple{(:x, :y), Tuple{Int64, Int64}}
   • metadata:
      x = 1
      y = 2
@@ -42,7 +42,7 @@ julia> mx.y
 2
 
 julia> attach_metadata(x, (x = 1, y = 2, suppress= [:x]))
-2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:x, :y, :suppress),Tuple{Int64,Int64,Array{Symbol,1}}}
+2×2 attach_metadata(::Matrix{Float64}, ::NamedTuple{(:x, :y, :suppress), Tuple{Int64, Int64, Vector{Symbol}}}
   • metadata:
      x = <suppressed>
      y = 2
@@ -61,7 +61,7 @@ There are a limited number of interfaces that require special types for binding 
 The rest are bound to `Metadata.MetaStruct`.
 ```julia
 julia> mr = attach_metadata(3//5, meta)
-attach_metadata(3//5, ::NamedTuple{(:x, :y),Tuple{Int64,Int64}})
+attach_metadata(3//5, ::NamedTuple{(:x, :y), Tuple{Int64, Int64}})
   • metadata:
      x = 1
      y = 2

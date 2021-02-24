@@ -11,7 +11,7 @@ Type for storing metadata alongside a range.
 julia> using Metadata
 
 julia> Metadata.MetaRange(1:1:2, (m1 =1, m2=[1, 2]))
-attach_metadata(1:1:2, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}})
+attach_metadata(1:1:2, ::NamedTuple{(:m1, :m2), Tuple{Int64, Vector{Int64}}})
   • metadata:
      m1 = 1
      m2 = [1, 2]
@@ -44,7 +44,7 @@ Type for storing metadata alongside a anything that is subtype of `AbstractUnitR
 julia> using Metadata
 
 julia> Metadata.MetaUnitRange(1:2, (m1 =1, m2=[1, 2]))
-attach_metadata(1:2, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}})
+attach_metadata(1:2, ::NamedTuple{(:m1, :m2), Tuple{Int64, Vector{Int64}}})
   • metadata:
      m1 = 1
      m2 = [1, 2]

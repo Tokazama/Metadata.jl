@@ -7,7 +7,6 @@ end Metadata
 
 using ArrayInterface
 using ArrayInterface: parent_type, known_first, known_last, known_step
-
 using Base: @propagate_inbounds, OneTo
 using Test
 
@@ -18,7 +17,6 @@ export
     @has_metadata,
     @copy_metadata,
     @share_metadata,
-    attach_eachmeta,
     attach_metadata,
     copy_metadata,
     has_metadata,
@@ -37,7 +35,7 @@ include("methods.jl")
 include("metastruct.jl")
 include("metaarray.jl")
 include("ranges.jl")
-include("elementwise.jl")
+#include("elementwise.jl")
 include("io.jl")
 
 for T in (MetaIO, MetaStruct, MetaArray, MetaRange, MetaUnitRange)
@@ -60,7 +58,7 @@ end
 
 @defproperties MetaStruct
 
-@defproperties ElementwiseMetaArray
+#@defproperties ElementwiseMetaArray
 
 @defproperties MetaIO
 

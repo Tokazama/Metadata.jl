@@ -4,32 +4,192 @@
 
 Array with metadata attached to each element.
 """
-struct ElementwiseMetaArray{T,N,P<:AbstractArray{<:MetaStruct{T},N}} <: AbstractArray{T,N}
+struct ElementwiseMetaArray{T,N,P<:AbstractArray{T,N},M,D} <: AbstractArray2{T,N}
     parent::P
+    metadata::M
+    defaults::D
 
-    function ElementwiseMetaArray(x::AbstractArray{T,N}) where {T,N}
-        if has_metadata(T)
-            return new{parent_type(T),N,typeof(x)}(x)
-        else
-            throw(ArgumentError("eltype of array does not have metadata: got $T."))
+    function ElementwiseMetaArray{T,N,P,M,D}(parent::P, metadata::M, defaults::D) where {T,N,P,M,D}
+        len = length(parent)
+        for (_, v) in metadata
+            eachindex(parent, v)
         end
+        return new{T,N,P,M}(parent, metadata)
     end
 
-    function ElementwiseMetaArray(x::AbstractArray, m)
-        return ElementwiseMetaArray(attach_eachmeta(x, m))
+    function ElementwiseMetaArray(parent::P, metadata::M, ::Nothing) where {P,M}
+        len = length(parent)
+        for (_, v) in metadata
+            eachindex(parent, v)
+        end
+        return new{eltype(P),ndims(P),P,M,Nothing}(parent, metadata, nothing)
+    end
+
+    function ElementwiseMetaArray(parent::P, metadata::M, defaults::D) where {P,M,D}
+        len = length(parent)
+        dkeys = keys(defaults)
+        inds = eachindex(IndexLinear(), parent)
+        if can_change_size(P)
+            for (k, v) in metadata
+                if eachindex(IndexLinear(), v) != inds
+                    error("Metadata at key $k does not match each parent index $inds, got $(eachindex(IndexLinear(), v))")
+                end
+                if !can_change_size(v)
+                    error("cannot change size of metadata at key $k, got $v")
+                end
+                if !(typeof(defaults[k]) <: eltype(v))
+                    error("Expected eltype of metedata corresponding to key $k to be $(eltype(v)), got $(typeof(defaults[k]))")
+                end
+            end
+            return new{eltype(P),ndims(P),P,M,D}(parent, metadata, nothing)
+        else
+            error("cannot change size of $x but received default values for changing size of $x")
+        end
+    end
+    function ElementwiseMetaArray(parent::P, metadata::M, ::Nothing) where {P,M}
+        len = length(parent)
+        inds = eachindex(IndexLinear(), parent)
+        for (_, v) in metadata
+            if eachindex(IndexLinear(), v) != inds
+                error("Metadata at key $k does not match each parent index $inds, got $(eachindex(IndexLinear(), v))")
+            end
+        end
+        return new{eltype(P),ndims(P),P,M,Nothing}(parent, metadata, nothing)
+    end
+
+    function ElementwiseMetaArray(parent::P, metadata::M)
+        return ElementwiseMetaArray(parent, metadata, nothing)
     end
 end
 
-ArrayInterface.parent_type(::Type{ElementwiseMetaArray{T,N,P}}) where {T,N,P} = P
+ArrayInterface.can_change_size(::Type{<:ElementwiseMetaArray{T,N,P,M,Nothing}}) where {T,N,P,M} = false
+ArrayInterface.can_change_size(::Type{<:ElementwiseMetaArray{T,N,P,M,D}}) where {T,N,P,M,D} = true
+ArrayInterface.parent_type(::Type{<:ElementwiseMetaArray{T,N,P}}) where {T,N,P} = P
 
 Base.parent(A::ElementwiseMetaArray) = getfield(A, :parent)
 
-function metadata_type(::Type{T}; dim=nothing) where {T<:ElementwiseMetaArray}
+function metadata_type(::Type{<:ElementwiseMetaArray{T,N,P,M}}; dim=nothing) where {T,N,P,M}
     if dim === nothing
-        return metadata_type(eltype(parent_type(T)))
+        return M
     else
-        return metadata_type(parent_type(T); dim=dim)
+        return metadata_type(P; dim=dim)
     end
+end
+
+@inline function metadata(A::ElementwiseMetaArray; dim=nothing)
+    if dim === nothing
+        return getfield(A, :metadata)
+    else
+        return metadata(parent(A); dim=dim)
+    end
+end
+
+# TODO provide default meta for elwise stuff
+function Base.push!(x::ElementwiseMetaArray, item)
+    if can_change_size(x)
+        _push!(metadata(item), x, item)
+        push!(parent(x), item)
+    else
+        error("cannot change size of $x")
+    end
+    return x
+end
+
+function _push!(::NoMetadata, x, item)
+    m = metadata(x)
+    for (k,v) in m
+        push!(v, copy(x.defaults[k]))
+    end
+end
+
+function _push!(mitem, x, item)
+    m = metadata(x)
+    for (k,v) in m
+        push!(v, copy(mitem[k]))
+    end
+end
+
+function Base.pushfirst!(x::ElementwiseMetaArray, item; metadata)
+    if can_change_size(x)
+        _pushfirst!(metadata(item), x, item)
+        pushfirst!(parent(x), item)
+    else
+        error("cannot change size of $x")
+    end
+    return x
+end
+
+function _pushfirst!(::NoMetadata, x, item)
+    m = metadata(x)
+    for (k,v) in m
+        pushfirst!(v, copy(x.defaults[k]))
+    end
+end
+
+function _pushfirst!(mitem, x, item)
+    m = metadata(x)
+    for (k,v) in m
+        pushfirst!(v, copy(mitem[k]))
+    end
+end
+
+function Base.append!(x::ElementwiseMetaArray, y)
+    if can_change_size(x)
+        _append!(metadata(y), x, y)
+        append!(parent(x), y)
+    else
+        error("cannot change size of $x")
+    end
+    return x
+end
+
+function _append!(::NoMetadata, x, y)
+    m = metadata(x)
+    len = length(x)
+    for (k,v) in m
+        append!(v, fill(x.defaults[k], len))
+    end
+end
+function _append!(my, x, y)
+    m = metadata(x)
+    len = length(x)
+    for (k,v) in m
+        append!(v, my[k])
+    end
+end
+
+function Base.prepend!(x::ElementwiseMetaArray, y)
+    if can_change_size(x)
+        _prepend!(metadata(y), x, y)
+        append!(parent(x), y)
+    else
+        error("cannot change size of $x")
+    end
+    return x
+end
+
+function _prepend!(::NoMetadata, x, y)
+    m = metadata(x)
+    len = length(x)
+    for (k,v) in m
+        prepend!(v, fill(x.defaults[k], len))
+    end
+end
+function _prepend!(my, x, y)
+    m = metadata(x)
+    len = length(x)
+    for (k,v) in m
+        prepend!(v, my[k])
+    end
+end
+
+# TODO function Base.reverse!(x::ElementwiseMetaArray) end
+
+# TODO function drop_metadata(x::ElementwiseMetaArray) end
+
+#=
+struct AdjacencyList{T,L<:AbstractVector{<:AbstractVector{T}}} <: AbstractGraph{T}
+    list::L
 end
 
 @inline function metadata_keys(x::ElementwiseMetaArray; dim=dim)
@@ -38,96 +198,6 @@ end
     else
         return fieldnames(metadata_type(x))
     end
-end
-
-@propagate_inbounds function Base.getindex(A::ElementwiseMetaArray{T}, args...) where {T}
-    val = getindex(parent(A), args...)
-    if val isa eltype(parent_type(A))
-        return parent(val)
-    else
-        return ElementwiseMetaArray(val)
-    end
-end
-
-# TODO how should setindex! work with metadata?
-@propagate_inbounds function Base.setindex!(A::ElementwiseMetaArray, val, args...)
-    return setindex!(parent(A), val, args...)
-end
-
-"""
-    MetaView{L}
-
-A view of an array of metadata bound elements whose elements are paired to the key `L`.
-"""
-struct MetaView{L,T,N,P<:AbstractArray{<:Any,N}} <: AbstractArray{T,N}
-    parent::P
-
-    function MetaView{L}(x::AbstractArray{T,N}) where {L,T,N}
-        if has_metadata(T)
-            return new{L,fieldtype(metadata_type(T), L),N,typeof(x)}(x)
-        else
-            throw(ArgumentError("eltype of array does not have metadata: got $T."))
-        end
-    end
-end
-
-ArrayInterface.parent_type(::Type{MetaView{L,T,N,P}}) where {L,T,N,P} = P
-
-Base.parent(x::MetaView) = getfield(x, :parent)
-
-@propagate_inbounds function Base.getindex(x::MetaView{L,T}, args...) where {L,T}
-    val = getindex(parent(x), args...)
-    if val isa eltype(parent_type(x))
-        return metadata(val, L)
-    else
-        return MetaView{L}(val)
-    end
-end
-
-@inline function metadata(A::ElementwiseMetaArray; dim=nothing)
-    if dim === nothing
-        if metadata_type(A) isa AbstractDict
-            return Dict(map(k -> metadata(A, k), metadata_keys(A))...)
-        else
-            ks = fieldnames(metadata_type(A))
-            return NamedTuple{ks}(map(k -> metadata(A, k), ks))
-        end
-    else
-        return metadata(parent(A); dim=dim)
-    end
-end
-
-@inline function metadata(A::ElementwiseMetaArray, k::Symbol; dim=nothing)
-    if dim === nothing
-        return MetaView{k}(parent(A))
-    else
-        return metadata(parent(A), k; dim=dim)
-    end
-end
-
-function unsafe_attach_eachmeta(x::AbstractVector, m::NamedTuple{L}, i::Int) where {L}
-    return MetaStruct(
-        @inbounds(x[i]),
-        NamedTuple{L}(ntuple(index -> @inbounds(m[L[index]][i]), Val(length(L))))
-    )
-end
-
-# TODO `eachindex` should change to `ArrayInterface.indices`
-function attach_eachmeta(x::AbstractVector, m::NamedTuple)
-    return ElementwiseMetaArray(map(i -> unsafe_attach_eachmeta(x, m, i), eachindex(x, m...)))
-end
-
-@_define_function_no_prop(Base, size, ElementwiseMetaArray)
-@_define_function_no_prop(Base, size, MetaView)
-@_define_function_no_prop(Base, axes, ElementwiseMetaArray)
-@_define_function_no_prop(Base, axes, MetaView)
-
-
-# TODO function drop_metadata(x::ElementwiseMetaArray) end
-
-#=
-struct AdjacencyList{T,L<:AbstractVector{<:AbstractVector{T}}} <: AbstractGraph{T}
-    list::L
 end
 
 const MetaAdjacencyList{T,M} = AdjacencyList{T,Vector{ElementwiseMetaArray{T,1,Vector{Tuple{T,M}}}}}

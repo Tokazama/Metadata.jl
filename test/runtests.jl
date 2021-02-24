@@ -1,5 +1,6 @@
 
 using ArrayInterface
+using Aqua
 using Documenter
 using Metadata
 using Test
@@ -7,6 +8,8 @@ using Test
 using ArrayInterface: parent_type
 using Metadata: MetaArray, no_metadata, GlobalMetadata
 
+
+Aqua.test_all(Metadata)
 
 @test isempty(detect_ambiguities(Metadata, Base))
 
@@ -215,6 +218,7 @@ end
     @test !isopen(mio)
 end
 
+#=
 @testset "ElementwiseMetaArray" begin
     x = [1, 2, 3]
     meta = (weight = [1.0, 2.0, 3.0],)
@@ -233,6 +237,7 @@ end
     @test mxview[3] === 3.0
     @test mxview[1:2][2] === 2.0
 end
+=#
 
 @testset "GlobalMetadata" begin
     x = ones(2, 2)

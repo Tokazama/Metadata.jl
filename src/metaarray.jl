@@ -11,7 +11,7 @@ some `metadata`.
 julia> using Metadata
 
 julia> Metadata.MetaArray(ones(2,2), metadata=(m1 =1, m2=[1, 2]))
-2×2 attach_metadata(::Array{Float64,2}, ::NamedTuple{(:m1, :m2),Tuple{Int64,Array{Int64,1}}}
+2×2 attach_metadata(::Matrix{Float64}, ::NamedTuple{(:m1, :m2), Tuple{Int64, Vector{Int64}}}
   • metadata:
      m1 = 1
      m2 = [1, 2]
@@ -24,7 +24,6 @@ julia> Metadata.MetaArray(ones(2,2), metadata=(m1 =1, m2=[1, 2]))
 struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
     parent::A
     metadata::M
-
 
     function MetaArray{T,N,M,A}(a::AbstractArray, meta) where {T,N,M,A}
         if a isa A
@@ -105,29 +104,11 @@ end
     end
 end
 
-Base.parent(A::MetaArray) = getfield(A, :parent)
-
-@_define_function_no_prop(Base, size, MetaArray)
-@_define_function_no_prop(Base, axes, MetaArray)
-
-Base.IndexStyle(T::Type{<:MetaArray}) = IndexStyle(parent_type(T))
-
 ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
 
-@propagate_inbounds function Base.getindex(A::MetaArray{T}, args...) where {T}
-    return _getindex(A, getindex(parent(A), args...))
-end
-
-_getindex(A::MetaArray{T}, val::T) where {T} = val
-_getindex(A::MetaArray{T}, val) where {T} = propagate_metadata(A, val)
-
-@propagate_inbounds function Base.setindex!(A::MetaArray, val, args...)
-    return setindex!(parent(A), val, args...)
-end
+Base.parent(A::MetaArray) = getfield(A, :parent)
 
 Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
-
-#function Base.show(io::IO, ::MIME"text/plain", A::MetaArray) end
 
 function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
     summary(io, X)
@@ -188,4 +169,23 @@ function Base.showarg(io::IO, x::MetaArray, toplevel)
     metadata_summary(io, x)
     print(io, "\n)")
 end
+
+@_define_function_no_prop(Base, size, MetaArray)
+@_define_function_no_prop(Base, axes, MetaArray)
+
+Base.IndexStyle(T::Type{<:MetaArray}) = IndexStyle(parent_type(T))
+
+
+@propagate_inbounds function Base.getindex(A::MetaArray{T}, args...) where {T}
+    return _getindex(A, getindex(parent(A), args...))
+end
+
+_getindex(A::MetaArray{T}, val::T) where {T} = val
+_getindex(A::MetaArray{T}, val) where {T} = propagate_metadata(A, val)
+
+@propagate_inbounds function Base.setindex!(A::MetaArray, val, args...)
+    return setindex!(parent(A), val, args...)
+end
+
+#function Base.show(io::IO, ::MIME"text/plain", A::MetaArray) end
 
