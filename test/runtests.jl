@@ -194,8 +194,9 @@ end
     @test isopen(mio)
     @test !ismarked(mio)
 
+    s = sizeof(Int)
     write(mio, 1)
-    @test position(mio) == 8
+    @test position(mio) == s
     seek(mio, 0)
     @test read(mio, Int) == 1
     seek(mio, 0)
@@ -204,13 +205,13 @@ end
     write(mio, [1,2]')
     seek(mio, 0)
     @test read!(mio, Vector{Int}(undef, 2)) == [1, 2]
-    skip(mio, 8)
-    @test position(mio) == 24
+    skip(mio, s)
+    @test position(mio) == 3s
     mark(mio)
     @test ismarked(mio)
     seek(mio, 0)
-    @test reset(mio) == 24
-    @test position(mio) == 24
+    @test reset(mio) == 3s
+    @test position(mio) == 3s
     mark(mio)
     @test ismarked(mio)
     unmark(mio)
