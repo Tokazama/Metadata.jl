@@ -71,6 +71,9 @@ end
     meta = (m1 =1, m2=[1, 2]);
     mx = attach_metadata(meta)(x);
 
+    @test metadata(similar(mx, eltype(mx), size(mx))) == meta
+    @test metadata(similar(mx, eltype(mx), axes(mx))) == meta
+
     @test @inferred(metadata(mx)) == meta
     @test @inferred(has_metadata(mx))
     @test @inferred(has_metadata(mx, :m1))

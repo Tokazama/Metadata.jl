@@ -136,25 +136,17 @@ end
 
 Base.print_array(io::IO, A::MetaArray) = Base.print_array(io, parent(A))
 
-function Base.similar(x::MetaArray, t::Type, dims)
-    return Metadata.share_metadata(x, similar(parent(x), t, dims))
+function Base.similar(x::MetaArray, ::Type{T}, dims::NTuple{N,Int}) where {T,N}
+    return Metadata.share_metadata(x, similar(parent(x), T, dims))
 end
 
 function Base.similar(
     x::MetaArray,
-    t::Type,
+    ::Type{T},
     dims::Tuple{Union{Integer,OneTo},Vararg{Union{Integer,OneTo}}}
-)
+) where {T}
 
-    return Metadata.propagate_metadata(x, similar(parent(x), t, dims))
-end
-
-function Base.similar(x::MetaArray, t::Type=eltype(x), dims::Tuple{Vararg{Int64}}=size(x))
-    return Metadata.propagate_metadata(A, similar(parent(x), t, dims))
-end
-
-function Base.similar(x::MetaArray, t::Type, dims::Union{Integer,AbstractUnitRange}...)
-    return Metadata.propagate_metadata(x, similar(parent(x), t, dims))
+    return Metadata.propagate_metadata(x, similar(parent(x), T, dims))
 end
 
 Base.summary(io::IO, x::MetaArray) = Base.showarg(io, x, true)
