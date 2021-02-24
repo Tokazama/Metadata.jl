@@ -244,7 +244,7 @@ end
     GC.gc()
     @test @metadata(x) == Metadata.no_metadata  # test finalizer on nested mutables
     @test_logs(
-        (:warn, "Cannot create finalizer for MyType{Int64}. Global dictionary must be manually deleted."),
+        (:warn, "Cannot create finalizer for MyType{$Int}. Global dictionary must be manually deleted."),
         @attach_metadata(x, meta)
     )
     @test @metadata(x, :x) == 1
