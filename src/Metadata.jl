@@ -35,7 +35,6 @@ include("methods.jl")
 include("metastruct.jl")
 include("metaarray.jl")
 include("ranges.jl")
-#include("elementwise.jl")
 include("io.jl")
 
 for T in (MetaIO, MetaStruct, MetaArray, MetaRange, MetaUnitRange)
@@ -57,8 +56,6 @@ end
 @defproperties MetaUnitRange
 
 @defproperties MetaStruct
-
-#@defproperties ElementwiseMetaArray
 
 @defproperties MetaIO
 

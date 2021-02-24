@@ -218,27 +218,6 @@ end
     @test !isopen(mio)
 end
 
-#=
-@testset "ElementwiseMetaArray" begin
-    x = [1, 2, 3]
-    meta = (weight = [1.0, 2.0, 3.0],)
-
-    mx = attach_eachmeta(x, meta)
-    @test mx[1] === 1
-    @test mx[2] === 2
-    @test mx[3] === 3
-    @test mx[1:2][2] === 2
-    @test metadata(mx) == meta
-    @test metadata(mx; dim=1) == no_metadata
-
-    mxview = mx.weight;
-    @test mxview[1] === 1.0
-    @test mxview[2] === 2.0
-    @test mxview[3] === 3.0
-    @test mxview[1:2][2] === 2.0
-end
-=#
-
 @testset "GlobalMetadata" begin
     x = ones(2, 2)
     meta = (x = 1, y = 2)
@@ -268,7 +247,7 @@ end
     @test @metadata(x, :y) == 2
 end
 
-if VERSION < v"1.6"
+if VERSION > v"1.6"
     @testset "docs" begin
         doctest(Metadata)
     end
