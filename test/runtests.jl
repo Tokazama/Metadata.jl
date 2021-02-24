@@ -251,7 +251,7 @@ end
     @test @metadata(x, :y) == 2
 end
 
-if VERSION > v"1.6"
+if VERSION > v"1.6" && sizeof(Int) === 8
     @testset "docs" begin
         doctest(Metadata)
     end
