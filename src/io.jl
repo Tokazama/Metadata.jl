@@ -42,11 +42,5 @@ function Base.write(@nospecialize(s::MetaIO), x::SubArray{T,N,P,I,L} where L whe
     return write(parent(s), x)
 end
 
-@inline function metadata_type(::Type{T}; dim=nothing) where {IOType,M,T<:MetaIO{IOType,M}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(IOType; dim=dim)
-    end
-end
+@inline metadata_type(::Type{T}) where {IOT,M,T<:MetaIO{IOT,M}} = M
 

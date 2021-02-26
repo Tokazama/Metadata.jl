@@ -58,146 +58,155 @@ Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 Base.haskey(::NoMetadata, @nospecialize(k)) = false
 
 """
-    metadata(x[, k; dim])
+    metadata(x)
 
-Returns metadata from `x`. If `k` is specified then the metadata value paired to
-`k` is returned. If `dim` is specified then the operation is performed for metadata
-specific to dimension `dim`.
+Returns metadata associated with `x`
 """
-function metadata(x::T; dim=nothing, kwargs...) where {T}
-    if parent_type(T) <: T
-        return no_metadata
+metadata(x) = _metadata(parent_type(x), x)
+metadata(x::AbstractDict) = x
+metadata(x::NamedTuple) = x
+_metadata(::Type{P}, x::T) where {P,T} = metadata(parent(x))
+_metadata(::Type{T}, x::T) where {T} = no_metadata
+
+"""
+    metadata(x::AbstractArray; dim)
+
+Returns the metadata associated with dimension `dim` of `x`.
+"""
+function metadata(x::AbstractArray; dim=nothing)
+    if dim === nothing
+        return _metadata(parent_type(x), x)
     else
-        return metadata(parent(x); dim=dim, kwargs...)
+        return _metadata_dim(x, to_dims(x, dim))
     end
 end
-function metadata(x::LinearIndices; dim=nothing, kwargs...)
-    if dim === nothing
-        return no_metadata
-    else
-        return metadata(x.indices[dim]; kwargs...)
-    end
-end
-function metadata(x::CartesianIndices; dim=nothing, kwargs...)
-    if dim === nothing
-        return no_metadata
-    else
-        return metadata(x.indices[dim])
-    end
-end
-function metadata(x::AbstractDict; dim=nothing, kwargs...)
-    if dim === nothing
-        return x
-    else
-        return no_metadata
-    end
-end
-function metadata(x::NamedTuple; dim=nothing, kwargs...)
-    if dim === nothing
-        return x
+_metadata_dim(x, dim::Int) = metadata(axes(x, dim))
+_metadata_dim(x, dim::StaticInt{D}) where {D} = metadata(axes(x, dim))
+_metadata_dim(x::LinearIndices, dim::Int) = metadata(getfield(x.indices, dim))
+_metadata_dim(x::LinearIndices, dim::StaticInt{D}) where {D} = metadata(getfield(x.indices, D))
+_metadata_dim(x::CartesianIndices, dim::Int) = metadata(getfield(x.indices, dim))
+_metadata_dim(x::CartesianIndices, dim::StaticInt{D}) where {D} = metadata(getfield(x.indices, D))
+
+"""
+    metadata(x, k)
+
+Returns the value associated with key `k` of `x`'s metadata.
+"""
+metadata(x::AbstractDict, k) = getindex(x, k)
+metadata(x::NamedTuple, k) = getproperty(x, k)
+function metadata(x, k)
+    if has_metadata(x)
+        return metadata(metadata(x), k)
     else
         return no_metadata
     end
 end
-function metadata(m::Module; dim=nothing, kwargs...)
+function metadata(m::Module)
+    if isdefined(m, GLOBAL_METADATA)
+        return getfield(m, GLOBAL_METADATA)::GlobalMetadata
+    else
+        return GlobalMetadata(m)
+    end
+end
+
+"""
+    metadata(x::AbstractArray, k; dim)
+
+Returns the value associated with key `k` of `x`'s metadata.
+"""
+@inline function metadata(x::AbstractArray, k; dim=nothing)
     if dim === nothing
-        if isdefined(m, GLOBAL_METADATA)
-            return getfield(m, GLOBAL_METADATA)::GlobalMetadata
+        if has_metadata(x)
+            return metadata(metadata(x), k)
         else
-            return GlobalMetadata(m)
+            return no_metadata
         end
     else
-        return no_metadata
-    end
-end
-
-@inline function metadata(x, k; dim=nothing)
-    if metadata_type(x; dim=dim) <: AbstractDict
-        return getindex(metadata(x; dim=dim), k)
-    else
-        return getproperty(metadata(x; dim=dim), k)
+        return metadata(metadata(x; dim=dim), k)
     end
 end
 
 """
-    metadata!(x, k, val[; dim])
+    metadata!(x::AbstractArray, k, val)
 
-Set `x`'s metadata paired to `k` to `val`. If `dim` is specified then the metadata
-corresponding to that dimension is mutated.
+Set the value associated with key `k` of `x`'s metadata to `val`.
 """
-@inline function metadata!(x, k, val; dim=nothing)
-    if metadata_type(x; dim=dim) <: AbstractDict
-        return setindex!(metadata(x; dim=dim), val, k)
-    else
-        return setproperty!(metadata(x; dim=dim), k, val)
-    end
-end
+@inline metadata!(x, k, val) = metadata!(metadata(x), k, val)
+metadata!(x::AbstractDict, k, val) = setindex!(x, val, k)
 
 """
-    metadata_type(x[, dim]) -> Type
+    metadata!(x::AbstractArray, k, val; dim)
 
-Returns the type of the metadata of `x`. If `dim` is specified then returns type
-of metadata associated with dimension `dim`.
+Set the value associated with key `k` of the metadata at dimension `dim` of `x` to `val`.
 """
-function metadata_type(x; dim=nothing)
+metadata!(x::AbstractArray, k, val; dim=nothing) = metadata!(metadata(x; dim=dim), k, val)
+
+"""
+    metadata_type(::Type{<:AbstractArray}; dim) -> Type
+
+Returns the type of the metadata of `x`. If `dim` is specified then returns type of
+metadata associated with dimension `dim`.
+"""
+metadata_type(x::AbstractArray; dim=nothing) = metadata_type(typeof(x); dim=dim)
+@inline function metadata_type(::Type{T}; dim=nothing) where {T<:AbstractArray}
     if dim === nothing
-        return metadata_type(typeof(x))
+        return _metadata_type(parent_type(T), T)
     else
-        return metadata_type(typeof(x); dim=dim)
+        return _metadata_dim_type(T, to_dims(T, dim))
     end
 end
-@inline function metadata_type(::Type{T}; dim=nothing) where {T}
-    if parent_type(T) <: T
-        return NoMetadata
-    else
-        if dim === nothing
-            return metadata_type(parent_type(T))
-        else
-            return metadata_type(parent_type(T); dim=dim)
-        end
-    end
-end
-
-metadata_type(::Type{T}; dim=nothing) where {T<:AbstractDict} = T
-metadata_type(::Type{T}; dim=nothing) where {T<:NamedTuple} = T
-function metadata_type(::Type{CartesianIndices{N,R}}; dim=nothing) where {N,R}
-    if dim === nothing
-        return NoMetadata
-    else
-        return metadata_type(R.parameters[dim])
-    end
-end
-
-function metadata_type(::Type{LinearIndices{N,R}}; dim=nothing) where {N,R}
-    if dim === nothing
-        return NoMetadata
-    else
-        return metadata_type(R.parameters[dim])
-    end
-end
-
-metadata_type(::Type{T}; dim=nothing) where {T<:Module} = GlobalMetadata
+_metadata_type(::Type{T}, ::Type{T}) where {T} = NoMetadata
+_metadata_type(::Type{P}, ::Type{T}) where {P,T} = metadata_type(P)
+_metadata_dim_type(::Type{T}, dim) where {T} = metadata_type(axes_types(T, dim))
 
 """
-    has_metadata(x[, k; dim]) -> Bool
+    metadata_type(::Type{T})
 
-Returns true if `x` has metadata. If `k` is specified then checks for the existence
-of a metadata paired to `k`. If `dim` is specified then this checks the metadata at
-the corresponding dimension.
+Returns the type of the metadata associated with `x`.
 """
-has_metadata(x; dim=nothing) = !(metadata_type(x; dim=dim) <: NoMetadata)
-@inline function has_metadata(x, k; dim=nothing)
-    if has_metadata(x; dim=dim)
-        m = metadata(x; dim=dim)
-        if m isa AbstractDict
-            return haskey(m, k)
-        else
-            return hasproperty(m, k)
-        end
+metadata_type(x) = metadata_type(typeof(x))
+metadata_type(::Type{T}) where {T} = _metadata_type(parent_type(T), T)
+metadata_type(::Type{T}) where {T<:AbstractDict} = T
+metadata_type(::Type{T}) where {T<:NamedTuple} = T
+metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
+
+"""
+    has_metadata(x) -> Bool
+
+Returns `true` if `x` has metadata.
+"""
+has_metadata(x) = has_metadata(typeof(x))
+has_metadata(::Type{T}) where {T} = _has_metadata(metadata_type(T))
+_has_metadata(::Type{NoMetadata}) = false
+_has_metadata(::Type{T}) where {T} = true
+
+"""
+    has_metadata(x::AbstractArray; dim) -> Bool
+
+Returns `true` if `x` has metadata associated with dimension `dim`.
+"""
+has_metadata(x::AbstractArray; dim=nothing) = has_metadata(typeof(x); dim=dim)
+function has_metadata(::Type{T}; dim=nothing) where {T<:AbstractArray}
+    if dim === nothing
+        return _has_metadata(metadata_type(T))
     else
-        return false
+        return _has_metadata(metadata_type(T; dim=dim))
     end
 end
+
+"""
+    has_metadata(x, k) -> Bool
+
+Returns `true` if metadata associated with `x` has the key `k`.
+"""
+has_metadata(x, k) = haskey(metadata(x), k)
+
+"""
+    has_metadata(x::AbstractArray, k; dim) -> Bool
+
+Returns `true` if metadata associated with dimension `dim` of `x` has the key `k`.
+"""
+has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 """
     attach_metadata(x, metadata)
@@ -328,28 +337,6 @@ end
 # will mutate metadata if both combine and share
 function _combine_meta(::ShareMetadata, ::ShareMetadata, x, y, dst)
     return attach_metadata(append!(metadata(x), metadata(y)), dst)
-end
-
-macro defproperties(T)
-    esc(quote
-        @inline function Base.getproperty(x::$T, k::Symbol)
-            if hasproperty(parent(x), k)
-                return getproperty(parent(x), k)
-            else
-                return Metadata.metadata(x, k)
-            end
-        end
-
-        @inline function Base.setproperty!(x::$T, k::Symbol, val)
-            if hasproperty(parent(x), k)
-                return setproperty!(parent(x), k, val)
-            else
-                return Metadata.metadata!(x, k, val)
-            end
-        end
-
-        @inline Base.propertynames(x::$T) = Metadata.metadata_keys(x)
-    end)
 end
 
 """

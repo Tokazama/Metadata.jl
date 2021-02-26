@@ -21,11 +21,8 @@ Aqua.test_all(Metadata)
     @test metadata_type(NamedTuple{(),Tuple{}}) <: NamedTuple{(),Tuple{}}
     @test Metadata.MetadataPropagation(Metadata.NoMetadata) == Metadata.DropMetadata()
     @test @inferred(metadata(Dict{Symbol,Any}())) == Dict{Symbol,Any}()
-    @test @inferred(metadata(Dict{Symbol,Any}(); dim=1)) == no_metadata
     @test @inferred(metadata((x =1,))) == (x =1,)
-    @test @inferred(metadata((x =1,); dim=1)) == no_metadata
     @test @inferred(metadata(Main)) isa GlobalMetadata
-    @test @inferred(metadata(Main; dim=1)) == no_metadata
     x = rand(4)
     m = metadata(Main)
     @test isempty(m)

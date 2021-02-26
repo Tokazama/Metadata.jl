@@ -21,7 +21,7 @@ julia> Metadata.MetaArray(ones(2,2), metadata=(m1 =1, m2=[1, 2]))
 
 ```
 """
-struct MetaArray{T, N, M, A<:AbstractArray} <: AbstractArray{T, N}
+struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, N}
     parent::A
     metadata::M
 
@@ -162,11 +162,9 @@ function Base.showarg(io::IO, x::MetaArray, toplevel)
     print(io, "\n)")
 end
 
-@_define_function_no_prop(Base, size, MetaArray)
-@_define_function_no_prop(Base, axes, MetaArray)
-
-Base.IndexStyle(T::Type{<:MetaArray}) = IndexStyle(parent_type(T))
-
+function ArrayInterface.defines_strides(::Type{T}) where {T<:MetaArray}
+    return ArrayInterface.defines_strides(parent_type(T))
+end
 
 @propagate_inbounds function Base.getindex(A::MetaArray{T}, args...) where {T}
     return _getindex(A, getindex(parent(A), args...))
@@ -174,10 +172,6 @@ end
 
 _getindex(A::MetaArray{T}, val::T) where {T} = val
 _getindex(A::MetaArray{T}, val) where {T} = propagate_metadata(A, val)
-
-@propagate_inbounds function Base.setindex!(A::MetaArray, val, args...)
-    return setindex!(parent(A), val, args...)
-end
 
 #function Base.show(io::IO, ::MIME"text/plain", A::MetaArray) end
 

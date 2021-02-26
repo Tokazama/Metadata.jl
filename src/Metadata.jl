@@ -6,7 +6,7 @@ module Metadata
 end Metadata
 
 using ArrayInterface
-using ArrayInterface: parent_type, known_first, known_last, known_step
+using ArrayInterface: parent_type, known_first, known_last, known_step, StaticInt, to_dims, axes_types
 using Base: @propagate_inbounds, OneTo
 using Test
 
