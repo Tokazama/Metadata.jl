@@ -256,11 +256,21 @@ Returns `x` without metadata attached.
 drop_metadata(x) = parent(x)
 
 # This allows dictionaries's keys to be treated like property names
-@inline function metadata_keys(x; dim=nothing)
-    if metadata_type(x; dim=dim) <: AbstractDict
-        return keys(metadata(x; dim=dim))
+@inline function metadata_keys(x::AbstractArray; dim=nothing)
+    if has_metadata(x; dim=dim)
+        return metadata_keys(metadata(x; dim=dim))
     else
-        return fieldnames(metadata_type(x; dim=dim))
+        return fieldnames(x)
+    end
+end
+
+metadata_keys(x::AbstractDict) = keys(x)
+metadata_keys(::NamedTuple{L}) where {L} = L
+function metadata_keys(x::X) where {X}
+    if has_metadata(X)
+        return metadata_keys(metadata(x))
+    else
+        return fieldnames(x)
     end
 end
 
