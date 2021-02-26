@@ -103,6 +103,8 @@ end
     @test IndexStyle(typeof(mx)) isa IndexLinear
     @test @inferred(size(mx)) == (4, 4)
     @test @inferred(axes(mx)) == (1:4, 1:4)
+    mx.m1 = 2
+    @test mx.m1 == 2
 
     @testset "constructors" begin
         m = Dict{Symbol,Int}(:x=>1,:y=>2)
