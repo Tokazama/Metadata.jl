@@ -277,6 +277,14 @@ io = IOBuffer()
 Metadata.metadata_summary(io, m)
 @test String(take!(io)) == "  • metadata:\n     x = 1\n     y = 2"
 
+#=
+mx = attach_metadata(ones(2,2), (x = 1, y = 2, suppress= [:x]))
+io = IOBuffer()
+show(io, mx)
+str = String(take!(io))
+@test String(take!(io)) == "  • metadata:\n     x = <suppressed>\n     y = 2"
+=#
+
 if VERSION > v"1.6" && sizeof(Int) === 8
     @testset "docs" begin
         doctest(Metadata)
