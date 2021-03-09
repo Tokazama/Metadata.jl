@@ -260,7 +260,7 @@ drop_metadata(x) = parent(x)
     if has_metadata(x; dim=dim)
         return metadata_keys(metadata(x; dim=dim))
     else
-        return fieldnames(x)
+        return propertynames(x)
     end
 end
 
@@ -270,7 +270,7 @@ function metadata_keys(x::X) where {X}
     if has_metadata(X)
         return metadata_keys(metadata(x))
     else
-        return fieldnames(x)
+        return propertynames(x)
     end
 end
 
