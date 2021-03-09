@@ -213,17 +213,16 @@ has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 Generic method for attaching metadata to `x`.
 """
-function attach_metadata(x::AbstractArray, m::METADATA_TYPES=MDict())
-    return MetaArray(x, m)
-end
-function attach_metadata(x::AbstractRange, m::METADATA_TYPES=MDict())
+attach_metadata(x, m=MDict()) = MetaStruct(x, m)
+attach_metadata(x::AbstractArray, m=MDict()) = MetaArray(x, m)
+function attach_metadata(x::AbstractRange, m=MDict())
     if known_step(x) === oneunit(eltype(x))
         return MetaUnitRange(x, m)
     else
         return MetaRange(x, m)
     end
 end
-attach_metadata(x::IO, m::METADATA_TYPES=MDict()) = MetaIO(x, m)
+attach_metadata(x::IO, m=MDict()) = MetaIO(x, m)
 attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, m)
 
 """

@@ -19,7 +19,6 @@ ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
 
 metadata_type(::Type{T}) where {P,M,T<:MetaStruct{P,M}} = M
 
-attach_metadata(x, m::METADATA_TYPES=MDict()) = MetaStruct(x, m)
 
 Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
 

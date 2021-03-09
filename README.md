@@ -1,6 +1,5 @@
 # Metadata.jl
 
-
 ![CI](https://github.com/Tokazama/Metadata.jl/workflows/CI/badge.svg)
 [![stable-docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://Tokazama.github.io/Metadata.jl/stable)
 [![dev-docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://Tokazama.github.io/Metadata.jl/dev)
@@ -111,20 +110,27 @@ julia> metadata(mx3) == metadata(mx2)
 true
 ```
 
-# Interface For Specific Metadata Glue Types
+# Creating New Metadata Types
 
-A new structure of type `T` and instance `g` that glues some data `x` to metadata `m` require the following methods:
+This package creates a very minimal number of dedicated structures and creating new dedicated structures that use this interface is encouraged.
+```julia
+abstract type AbstractNoop end
 
-| Required Methods                            | Brief Description                                                     |
-| ------------------------------------------- | --------------------------------------------------------------------- |
-| `Metadata.metadata(g; dim) -> m`            | returns the metadata                                                  |
-| `Metadata.metadata_type(::Type{T}; dim)`    | returns the type of the metadata                                      |
-| `Base.parent(g) -> x`                       | returns the parent instance attached to the metadata                  |
-| `Metadata.attach_metadata(x, m) -> T(x, m)` | returns an instance of `T` that has the metadata `m` attached to `x`. |
+struct Noop <: AbstractNoop end
 
-| Optional Methods                            | returns an instance of `T` that has the metadata `m` attached to `x`. |
-| ------------------------------------------  | --------------------------------------------------------------------- |
-| `Base.getproperty(x, k)`                    | get metadata assigned to key `k`                                      |
-| `Base.setproperty!(x, k, val)`              | set metadata at key `k` to `val`                                      |
-| `Base.propertynames(x)`                     | return the keys/properties of `x`                                     |
+struct MetaNoop{P<:AbstractNoop,M} <: AbstractNoop
+    parent::P
+    metadata::M
+end
+
+Metadata.metadata(x::MetaNoop) = getfield(x, :metadata)
+Metadata.attach_metadata(x::AbstractNoop, m) = MetaNoop(x, m)
+Metadata.metadata_type(::Type{MetaNoop{P,M}}) where {P,M} = M
+
+ArrayInterface.parent_type(::Type{MetaNoop{P,M}}) where {P,M} = P
+Base.parent(x::MetaNoop) = getfield(x, :parent)
+```
+
+It's advised that `Metadata.test_wrapper(MetaNoop, Noop())` is run to ensure it works.
+Note that using the dot operator (`.`) that aliases `getproperty` and `setproperty!` is not necessary.
 

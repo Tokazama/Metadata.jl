@@ -66,10 +66,10 @@ Tests the metadata interface for a metadata wrapper (`WrapperType`) for binding 
 of type `X`. It returns the results of `attach_metadata(x, Dict{Symbol,Any}())` for further
 testing.
 """
-function test_wrapper(::Type{WrapperType}, data) where {WrapperType}
+function test_wrapper(::Type{T}, data) where {T}
     m = Dict{Symbol,Any}()
     x = attach_metadata(data, m)
-    @test x isa WrapperType
+    @test x isa T
 
     @test metadata_type(x) <: typeof(m)
     @test metadata_type(typeof(x)) <: typeof(m)
