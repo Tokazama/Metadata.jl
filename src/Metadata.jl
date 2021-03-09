@@ -31,8 +31,8 @@ const METADATA_TYPES = Union{<:AbstractDict{Symbol,Any},<:NamedTuple}
 const MDict = Dict{Symbol,Any}
 
 include("utils.jl")
-include("methods.jl")
 include("metastruct.jl")
+include("methods.jl")
 include("metaarray.jl")
 include("ranges.jl")
 include("io.jl")

@@ -169,6 +169,7 @@ metadata_type(::Type{T}) where {T} = _metadata_type(parent_type(T), T)
 metadata_type(::Type{T}) where {T<:AbstractDict} = T
 metadata_type(::Type{T}) where {T<:NamedTuple} = T
 metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
+metadata_type(::Type{MetaStruct{P,M}}) where {P,M} = M
 
 """
     has_metadata(x) -> Bool
@@ -316,36 +317,12 @@ propagate_metadata(::DropMetadata, src, dst) = dst
 propagate_metadata(::ShareMetadata, src, dst) = share_metadata(src, dst)
 propagate_metadata(::CopyMetadata, src, dst) = copy_metadata(src, dst)
 
-function combine_metadata(x, y, dst)
-    return _combine_meta(MetadataPropagation(x), MetadataPropagation(y), x, y, dst)
-end
-
-function _combine_meta(px::DropMetadata, py::MetadataPropagation, x, y, dst)
-    return propagate_metadata(py, y, dst)
-end
-
-function _combine_meta(px::MetadataPropagation, py::DropMetadata, x, y, dst)
-    return propagate_metadata(px, x, dst)
-end
-
-_combine_meta(::DropMetadata, ::DropMetadata, x, y, dst) = dst
-
-function _combine_meta(::CopyMetadata, ::CopyMetadata, x, y, dst)
-    return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
-end
-
-function _combine_meta(::ShareMetadata, ::CopyMetadata, x, y, dst)
-    return attach_metadata(append!(deepcopy(metadata(y)), metadata(x)), dst)
-end
-
-function _combine_meta(::CopyMetadata, ::ShareMetadata, x, y, dst)
-    return attach_metadata(append!(deepcopy(metadata(x)), metadata(y)), dst)
-end
-
-# TODO need to consider what should happen here because non mutating functions
-# will mutate metadata if both combine and share
-function _combine_meta(::ShareMetadata, ::ShareMetadata, x, y, dst)
-    return attach_metadata(append!(metadata(x), metadata(y)), dst)
+function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}
+    if P <: Number
+        return DropMetadata()
+    else
+        return ShareMetadata()
+    end
 end
 
 """

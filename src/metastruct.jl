@@ -17,7 +17,6 @@ end
 Base.parent(m::MetaStruct) = getfield(m, :parent)
 ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
 
-metadata_type(::Type{T}) where {P,M,T<:MetaStruct{P,M}} = M
 
 
 Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
@@ -25,14 +24,6 @@ Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
 function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
     print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
     Metadata.metadata_summary(io, x)
-end
-
-function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}
-    if P <: Number
-        return DropMetadata()
-    else
-        return ShareMetadata()
-    end
 end
 
 Base.copy(x::MetaStruct) = propagate_metadata(x, deepcopy(parent(x)))
