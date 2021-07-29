@@ -15,7 +15,7 @@ struct GlobalMetadata <: AbstractDict{UInt,MDict}
 
     function GlobalMetadata(m::Module)
         if !isdefined(m, GLOBAL_METADATA)
-            Core.eval(m, :(const $GLOBAL_METADATA = $(new(IdDict{UInt,MDict}()))))
+            Core.eval(m, :(const $GLOBAL_METADATA = $(new(IdDict{UInt,Dict{Symbol,Any}}()))))
             push!(modules, m)
         end
         return metadata(m)
@@ -214,16 +214,16 @@ has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 Generic method for attaching metadata to `x`.
 """
-attach_metadata(x, m=MDict()) = MetaStruct(x, m)
-attach_metadata(x::AbstractArray, m=MDict()) = MetaArray(x, m)
-function attach_metadata(x::AbstractRange, m=MDict())
+attach_metadata(x, m=Dict{Symbol,Any}()) = MetaStruct(x, m)
+attach_metadata(x::AbstractArray, m=Dict{Symbol,Any}()) = MetaArray(x, m)
+function attach_metadata(x::AbstractRange, m=Dict{Symbol,Any}())
     if known_step(x) === oneunit(eltype(x))
         return MetaUnitRange(x, m)
     else
         return MetaRange(x, m)
     end
 end
-attach_metadata(x::IO, m=MDict()) = MetaIO(x, m)
+attach_metadata(x::IO, m=Dict{Symbol,Any}()) = MetaIO(x, m)
 attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, m)
 
 """
@@ -396,7 +396,7 @@ function attach_global_metadata(x, meta::MDict, m::Module)
 end
 
 function attach_global_metadata(x, meta, m::Module)
-    gm = MDict()
+    gm = Dict{Symbol,Any}()
     for (k,v) in pairs(meta)
         gm[k] = v
     end

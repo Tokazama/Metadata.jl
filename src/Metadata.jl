@@ -25,10 +25,10 @@ export
     metadata_type,
     share_metadata
 
-const METADATA_TYPES = Union{<:AbstractDict{Symbol,Any},<:NamedTuple}
+const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,Any},<:NamedTuple}
 
 # default dict
-const MDict = Dict{Symbol,Any}
+const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
 include("utils.jl")
 include("metastruct.jl")
