@@ -41,11 +41,11 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
         end
     end
 
-    function MetaArray{T,N,M,A}(a::AbstractArray; metadata=MDict(), kwargs...) where {T,N,M,A}
+    function MetaArray{T,N,M,A}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N,M,A}
         return MetaArray{T,N,M,A}(a, _construct_meta(metadata, values(kwargs)))
     end
 
-    function MetaArray{T,N,M,A}(args...; metadata=MDict(), kwargs...) where {T,N,M,A}
+    function MetaArray{T,N,M,A}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N,M,A}
         return MetaArray{T,N,M,A}(A(args...); metadata=metadata, kwargs...)
     end
 
@@ -65,24 +65,24 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     ###
     MetaArray{T,N}(a::AbstractArray, m::M) where {T,N,M} = MetaArray{T,N,M}(a, m)
 
-    function MetaArray{T,N}(a::AbstractArray; metadata=MDict(), kwargs...) where {T,N}
+    function MetaArray{T,N}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N}
         return MetaArray{T,N}(a, _construct_meta(metadata, values(kwargs)))
     end
 
-    function MetaArray{T,N}(args...; metadata=MDict(), kwargs...) where {T,N}
+    function MetaArray{T,N}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N}
         return MetaArray{T,N}(Array{T,N}(args...); metadata=metadata, kwargs...)
     end
 
     ###
     ### MetArray{T}
     ###
-    function MetaArray{T}(args...; metadata=MDict(), kwargs...) where {T}
+    function MetaArray{T}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T}
         return MetaArray{T}(Array{T}(args...); metadata=metadata, kwargs...)
     end
 
     MetaArray{T}(a::AbstractArray, m::M) where {T,M} = MetaArray{T,ndims(a)}(a, m)
 
-    function MetaArray{T}(a::AbstractArray; metadata=MDict(), kwargs...) where {T}
+    function MetaArray{T}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T}
         return MetaArray{T,ndims(a)}(a; metadata=metadata, kwargs...)
     end
 
@@ -91,7 +91,7 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     ###
     MetaArray(v::AbstractArray{T,N}, m::M) where {T,N,M} = new{T,N,M,typeof(v)}(v, m)
 
-    function MetaArray(a::AbstractArray; metadata=MDict(), kwargs...)
+    function MetaArray(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...)
         return MetaArray{eltype(a)}(a; metadata=metadata, kwargs...)
     end
 end
@@ -146,6 +146,9 @@ function Base.similar(
     dims::Tuple{Union{Integer,OneTo},Vararg{Union{Integer,OneTo}}}
 ) where {T}
 
+    return Metadata.propagate_metadata(x, similar(parent(x), T, dims))
+end
+function Base.similar(x::MetaArray, ::Type{T}, dims::Tuple{Integer, Vararg{Integer}}) where {T}
     return Metadata.propagate_metadata(x, similar(parent(x), T, dims))
 end
 

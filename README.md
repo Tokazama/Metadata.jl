@@ -113,7 +113,7 @@ true
 # Creating New Metadata Types
 
 This package creates a very minimal number of dedicated structures and creating new dedicated structures that use this interface is encouraged.
-```julia
+```
 abstract type AbstractNoop end
 
 struct Noop <: AbstractNoop end
