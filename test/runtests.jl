@@ -59,6 +59,8 @@ end
     @test @inferred(parent_type(mxview)) <: typeof(xview)
     @test @inferred(typeof(mx)(xview, meta)) isa typeof(mx)
 
+    @test ArrayInterface.defines_strides(typeof(mx))
+
     @test isempty(metadata(Metadata.MetaArray(ones(2,2))))
 
     mx = attach_metadata(x)

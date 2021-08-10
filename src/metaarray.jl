@@ -32,12 +32,10 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
             else
                 return new{T,N,M,A}(a, M(meta))
             end
+        elseif meta isa M
+            return new{T,N,M,A}(A(a), meta)
         else
-            if meta isa M
-                return new{T,N,M,A}(A(a), meta)
-            else
-                return new{T,N,M,A}(A(a), M(meta))
-            end
+            return new{T,N,M,A}(A(a), M(meta))
         end
     end
 
@@ -133,8 +131,6 @@ function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
     recur_io = IOContext(io, :SHOWN_SET => X)
     Base.print_array(recur_io, parent(X))
 end
-
-Base.print_array(io::IO, A::MetaArray) = Base.print_array(io, parent(A))
 
 function Base.similar(x::MetaArray, ::Type{T}, dims::NTuple{N,Int}) where {T,N}
     return Metadata.share_metadata(x, similar(parent(x), T, dims))
