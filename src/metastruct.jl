@@ -12,12 +12,8 @@ struct MetaStruct{P,M}
     metadata::M
 end
 
-#Base.parent(m::MetaStruct) = @inbounds(getindex(metadata(parent_module(x)), Base.objectid(x)))
-
 Base.parent(m::MetaStruct) = getfield(m, :parent)
 ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
-
-
 
 Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
 

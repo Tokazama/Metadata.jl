@@ -25,20 +25,10 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     parent::A
     metadata::M
 
-    function MetaArray{T,N,M,A}(a::AbstractArray, meta) where {T,N,M,A}
-        if a isa A
-            if meta isa M
-                return new{T,N,M,A}(a, meta)
-            else
-                return new{T,N,M,A}(a, M(meta))
-            end
-        elseif meta isa M
-            return new{T,N,M,A}(A(a), meta)
-        else
-            return new{T,N,M,A}(A(a), M(meta))
-        end
-    end
-
+    MetaArray{T,N,M,A}(a::A, m::M) where {T,N,M,A} = new{T,N,M,A}(a, m)
+    MetaArray{T,N,M,A}(a::A, m) where {T,N,M,A} = new{T,N,M,A}(a, M(m))
+    MetaArray{T,N,M,A}(a, m::M) where {T,N,M,A} = MetaArray{T,N,M,A}(A(a), m)
+    MetaArray{T,N,M,A}(a, m) where {T,N,M,A} = MetaArray{T,N,M,A}(A(a), M(m))
     function MetaArray{T,N,M,A}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N,M,A}
         return MetaArray{T,N,M,A}(a, _construct_meta(metadata, values(kwargs)))
     end
@@ -62,11 +52,9 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     ### MetArray{T,N}
     ###
     MetaArray{T,N}(a::AbstractArray, m::M) where {T,N,M} = MetaArray{T,N,M}(a, m)
-
     function MetaArray{T,N}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N}
         return MetaArray{T,N}(a, _construct_meta(metadata, values(kwargs)))
     end
-
     function MetaArray{T,N}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N}
         return MetaArray{T,N}(Array{T,N}(args...); metadata=metadata, kwargs...)
     end
@@ -77,9 +65,7 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     function MetaArray{T}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T}
         return MetaArray{T}(Array{T}(args...); metadata=metadata, kwargs...)
     end
-
     MetaArray{T}(a::AbstractArray, m::M) where {T,M} = MetaArray{T,ndims(a)}(a, m)
-
     function MetaArray{T}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T}
         return MetaArray{T,ndims(a)}(a; metadata=metadata, kwargs...)
     end
@@ -88,7 +74,6 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     ### MetaArray
     ###
     MetaArray(v::AbstractArray{T,N}, m::M) where {T,N,M} = new{T,N,M,typeof(v)}(v, m)
-
     function MetaArray(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...)
         return MetaArray{eltype(a)}(a; metadata=metadata, kwargs...)
     end
