@@ -21,6 +21,7 @@ end
 
 macro defproperties(T)
     esc(quote
+        Base.getproperty(x::$T, k::String) = Metadata.metadata(x, k)
         @inline function Base.getproperty(x::$T, k::Symbol)
             if hasproperty(parent(x), k)
                 return getproperty(parent(x), k)
@@ -29,6 +30,7 @@ macro defproperties(T)
             end
         end
 
+        Base.setproperty!(x::$T, k::String, v) = Metadata.metadata!(x, k, v)
         @inline function Base.setproperty!(x::$T, k::Symbol, val)
             if hasproperty(parent(x), k)
                 return setproperty!(parent(x), k, val)

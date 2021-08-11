@@ -47,6 +47,15 @@ end
     @test @inferred(has_metadata(y, :m1))
     @test @inferred(Metadata.metadata_keys(y)) === keys(m)
     @test Metadata.metadata_keys(1 => 2) === propertynames(1 => 2)
+
+    mutable struct MutableType
+        field::Int
+    end
+    x = Metadata.MetaStruct(MutableType(1), Dict{String,Any}())
+    x."m1" = 1
+    @test getproperty(x, "m1") == 1
+    x.field = 2
+    @test getproperty(x, :field) == 2
 end
 
 @testset "MetaArray" begin
@@ -58,6 +67,9 @@ end
     @test @inferred(parent_type(mx)) <: typeof(x)
     @test @inferred(parent_type(mxview)) <: typeof(xview)
     @test @inferred(typeof(mx)(xview, meta)) isa typeof(mx)
+    @test mxview.indices === xview.indices
+
+    @test ArrayInterface.defines_strides(typeof(mx))
 
     @test isempty(metadata(Metadata.MetaArray(ones(2,2))))
 
