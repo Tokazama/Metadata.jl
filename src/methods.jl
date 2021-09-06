@@ -95,13 +95,7 @@ Returns the value associated with key `k` of `x`'s metadata.
 """
 metadata(x::AbstractDict, k) = getindex(x, k)
 metadata(x::NamedTuple, k) = getproperty(x, k)
-function metadata(x, k)
-    if has_metadata(x)
-        return metadata(metadata(x), k)
-    else
-        return no_metadata
-    end
-end
+metadata(x, k) = get(metadata(x), k, no_metadata)
 function metadata(m::Module)
     if isdefined(m, GLOBAL_METADATA)
         return getfield(m, GLOBAL_METADATA)::GlobalMetadata
@@ -202,10 +196,10 @@ that `getmeta!` passes `x` to `f` as an argument (as opposed to `f()`).
     m = metadata(x)
     out = get(m, k, no_metadata)
     if out === no_metadata
-        return metadata!(m, f(x), k)
-    else
-        return out
+        out = f(x)
+        metadata!(m, k, out)
     end
+    return out
 end
 
 """

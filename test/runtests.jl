@@ -117,7 +117,10 @@ end
     @test metadata(mx, :m1) == 1
     @test getmeta(mx, :m1, 4) == 1
     @test getmeta(mx, :m4, 4) == 4
+    @test getmeta(ndims, x, :m4) == 2
     @test getmeta!(mx, :m4, 4) == 4
+    @test getmeta!(ndims, mx, :m5) == 2
+    @test getmeta!(ndims, mx, :m5) == 2
     @test metadata(mx, :m4) == 4
     # Currently Dict doesn't preserve order so we just check for presence of keys
     @test in(:m1, Metadata.metadata_keys(mx))
