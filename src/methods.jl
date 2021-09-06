@@ -56,6 +56,7 @@ const no_metadata = NoMetadata()
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
 Base.haskey(::NoMetadata, @nospecialize(k)) = false
+Base.get(::NoMetadata, @nospecialize(k), default) = default
 
 """
     metadata(x)
@@ -94,13 +95,7 @@ Returns the value associated with key `k` of `x`'s metadata.
 """
 metadata(x::AbstractDict, k) = getindex(x, k)
 metadata(x::NamedTuple, k) = getproperty(x, k)
-function metadata(x, k)
-    if has_metadata(x)
-        return metadata(metadata(x), k)
-    else
-        return no_metadata
-    end
-end
+metadata(x, k) = get(metadata(x), k, no_metadata)
 function metadata(m::Module)
     if isdefined(m, GLOBAL_METADATA)
         return getfield(m, GLOBAL_METADATA)::GlobalMetadata
@@ -158,6 +153,54 @@ end
 _metadata_type(::Type{T}, ::Type{T}) where {T} = NoMetadata
 _metadata_type(::Type{P}, ::Type{T}) where {P,T} = metadata_type(P)
 _metadata_dim_type(::Type{T}, dim) where {T} = metadata_type(axes_types(T, dim))
+
+"""
+    getmeta(x, key, default)
+
+Return the metadata associated with `key`, or return `default` if `key` is not found.
+"""
+@inline getmeta(x, k, default) = get(metadata(x), k, default)
+
+"""
+    getmeta(f::Function, x, key)
+
+Return the metadata associated with `key`, or return `f(x)` if `key` is not found. Note that
+this behavior differs from `Base.get(::Function, x, keys)` in that `getmeta` passes `x` to
+`f` as an argument (as opposed to `f()`).
+"""
+@inline function getmeta(f::Function, x, k)
+    m = get(metadata(x), k, no_metadata)
+    if m === no_metadata
+        return f(x)
+    else
+        return m
+    end
+end
+
+"""
+    getmeta!(x, key, default)
+
+Return the metadata associated with `key`. If `key` is not found then `default` is returned
+and stored at `key`.
+"""
+@inline getmeta!(x, k, default) = get!(metadata(x), k, default)
+
+"""
+    getmeta!(f::Function, x, key)
+
+Return the metadata associated with `key`. If `key` is not found then `f(x)` is returned
+and stored at `key`. Note that this behavior differs from `Base.get!(::Function, x, keys)` in
+that `getmeta!` passes `x` to `f` as an argument (as opposed to `f()`).
+"""
+@inline function getmeta!(f::Function, x, k)
+    m = metadata(x)
+    out = get(m, k, no_metadata)
+    if out === no_metadata
+        out = f(x)
+        metadata!(m, k, out)
+    end
+    return out
+end
 
 """
     metadata_type(::Type{T})

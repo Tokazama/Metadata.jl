@@ -56,7 +56,7 @@ struct MetaUnitRange{T,P<:AbstractRange{T},M} <: AbstractUnitRange{T}
     metadata::M
 
     function MetaUnitRange{T,P,M}(p::P, m::M) where {T,P,M}
-        if known_step(P) === oneunit(T)
+        if known_step(P) == oneunit(T)
             return new{T,P,M}(p, m)
         else
             throw(ArgumentError("step must be 1, got $(step(p))"))
@@ -83,7 +83,6 @@ ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
         return metadata_type(R; dim=dim)
     end
 end
-
 
 @_define_function_no_prop(Base, first, MetaRange)
 @_define_function_no_prop(Base, step, MetaRange)
