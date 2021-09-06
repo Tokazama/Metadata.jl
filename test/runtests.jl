@@ -115,6 +115,10 @@ end
     @test @inferred(has_metadata(mx))
     @test @inferred(has_metadata(mx, :m1))
     @test metadata(mx, :m1) == 1
+    @test getmeta(mx, :m1, 4) == 1
+    @test getmeta(mx, :m4, 4) == 4
+    @test getmeta!(mx, :m4, 4) == 4
+    @test metadata(mx, :m4) == 4
     # Currently Dict doesn't preserve order so we just check for presence of keys
     @test in(:m1, Metadata.metadata_keys(mx))
     @test in(:m2, Metadata.metadata_keys(mx))
@@ -124,6 +128,7 @@ end
     @test mx[1:2] == [1, 1]
     @test @inferred(metadata(mx[1:2])) == metadata(mx)
     @test @inferred(metadata_type(mx)) <: AbstractDict
+    # test getmeta/getmeta!
 
     @test IndexStyle(typeof(mx)) isa IndexLinear
     @test @inferred(size(mx)) == (4, 4)

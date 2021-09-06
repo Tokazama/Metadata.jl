@@ -29,6 +29,9 @@ Metadata.@share_metadata
 Metadata.drop_metadata
 
 Metadata.test_wrapper
+
+Metadata.getmeta
+Metadata.getmeta!
 ```
 
 ## Internal

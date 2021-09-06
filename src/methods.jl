@@ -56,6 +56,7 @@ const no_metadata = NoMetadata()
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
 Base.haskey(::NoMetadata, @nospecialize(k)) = false
+Base.get(::NoMetadata, @nospecialize(k), default) = default
 
 """
     metadata(x)
@@ -158,6 +159,54 @@ end
 _metadata_type(::Type{T}, ::Type{T}) where {T} = NoMetadata
 _metadata_type(::Type{P}, ::Type{T}) where {P,T} = metadata_type(P)
 _metadata_dim_type(::Type{T}, dim) where {T} = metadata_type(axes_types(T, dim))
+
+"""
+    getmeta(x, key, default)
+
+Return the metadata associated with `key`, or return `default` if `key` is not found.
+"""
+@inline getmeta(x, k, default) = get(metadata(x), k, default)
+
+"""
+    getmeta(f::Function, x, key)
+
+Return the metadata associated with `key`, or return `f(x)` if `key` is not found. Note that
+this behavior differs from `Base.get(::Function, x, keys)` in that `getmeta` passes `x` to
+`f` as an argument (as opposed to `f()`).
+"""
+@inline function getmeta(f::Function, x, k)
+    m = get(metadata(x), k, no_metadata)
+    if m === no_metadata
+        return f(x)
+    else
+        return m
+    end
+end
+
+"""
+    getmeta!(x, key, default)
+
+Return the metadata associated with `key`. If `key` is not found then `default` is returned
+and stored at `key`.
+"""
+@inline getmeta!(x, k, default) = get!(metadata(x), k, default)
+
+"""
+    getmeta!(f::Function, x, key)
+
+Return the metadata associated with `key`. If `key` is not found then `f(x)` is returned
+and stored at `key`. Note that this behavior differs from `Base.get!(::Function, x, keys)` in
+that `getmeta!` passes `x` to `f` as an argument (as opposed to `f()`).
+"""
+@inline function getmeta!(f::Function, x, k)
+    m = metadata(x)
+    out = get(m, k, no_metadata)
+    if out === no_metadata
+        return metadata!(m, f(x), k)
+    else
+        return out
+    end
+end
 
 """
     metadata_type(::Type{T})

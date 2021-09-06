@@ -19,6 +19,8 @@ export
     @share_metadata,
     attach_metadata,
     copy_metadata,
+    getmeta,
+    getmeta!,
     has_metadata,
     metadata,
     metadata!,
