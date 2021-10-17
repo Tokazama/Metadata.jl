@@ -1,5 +1,4 @@
 
-
 """
     MetaStruct(p, m)
 
@@ -76,13 +75,6 @@ end
 
 Base.parent(r::MetaUnitRange) = getfield(r, :parent)
 ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
-@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaUnitRange{<:Any,R,M}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(R; dim=dim)
-    end
-end
 
 @_define_function_no_prop(Base, first, MetaUnitRange)
 @_define_function_no_prop(Base, step, MetaUnitRange)
@@ -246,14 +238,6 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     MetaArray(v::AbstractArray{T,N}, m::M) where {T,N,M} = new{T,N,M,typeof(v)}(v, m)
     function MetaArray(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...)
         return MetaArray{eltype(a)}(a; metadata=metadata, kwargs...)
-    end
-end
-
-@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(A; dim=dim)
     end
 end
 
