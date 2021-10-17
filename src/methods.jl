@@ -93,8 +93,13 @@ _metadata_dim(x::CartesianIndices, dim::StaticInt{D}) where {D} = metadata(getfi
 
 Returns the value associated with key `k` of `x`'s metadata.
 """
-metadata(x::AbstractDict, k) = getindex(x, k)
-metadata(x::NamedTuple, k) = getproperty(x, k)
+metadata(m::AbstractDict{String}, k::Symbol) = m[String(k)]
+metadata(m::AbstractDict{String}, k::String) = m[k]
+metadata(m::AbstractDict{Symbol}, k::Symbol) = m[k]
+metadata(m::AbstractDict{Symbol}, k::String) = m[Symbol(k)]
+metadata(m::NamedTuple, k::String) = m[Symbol(k)]
+metadata(m::NamedTuple, k::Symbol) = m[k]
+metadata(m::NamedTuple, k::Int) = m[k]
 metadata(x, k) = get(metadata(x), k, no_metadata)
 function metadata(m::Module)
     if isdefined(m, GLOBAL_METADATA)
@@ -128,6 +133,8 @@ Set the value associated with key `k` of `x`'s metadata to `val`.
 """
 @inline metadata!(x, k, val) = metadata!(metadata(x), k, val)
 metadata!(x::AbstractDict, k, val) = setindex!(x, val, k)
+metadata!(m::AbstractDict{String}, k::Symbol, val) = setindex!(m, val, String(k))
+metadata!(m::AbstractDict{Symbol}, k::String, val) = setindex!(m, val, Symbol(k))
 
 """
     metadata!(x::AbstractArray, k, val; dim)
@@ -137,7 +144,7 @@ Set the value associated with key `k` of the metadata at dimension `dim` of `x` 
 metadata!(x::AbstractArray, k, val; dim=nothing) = metadata!(metadata(x; dim=dim), k, val)
 
 """
-    metadata_type(::Type{<:AbstractArray}; dim) -> Type
+    metadata_type(::Type{<:AbstractArray}; dim)::Type
 
 Returns the type of the metadata of `x`. If `dim` is specified then returns type of
 metadata associated with dimension `dim`.
@@ -215,7 +222,7 @@ metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
 metadata_type(::Type{MetaStruct{P,M}}) where {P,M} = M
 
 """
-    has_metadata(x) -> Bool
+    has_metadata(x)::Bool
 
 Returns `true` if `x` has metadata.
 """
@@ -225,7 +232,7 @@ _has_metadata(::Type{NoMetadata}) = false
 _has_metadata(::Type{T}) where {T} = true
 
 """
-    has_metadata(x::AbstractArray; dim) -> Bool
+    has_metadata(x::AbstractArray; dim)::Bool
 
 Returns `true` if `x` has metadata associated with dimension `dim`.
 """
@@ -239,14 +246,14 @@ function has_metadata(::Type{T}; dim=nothing) where {T<:AbstractArray}
 end
 
 """
-    has_metadata(x, k) -> Bool
+    has_metadata(x, k)::Bool
 
 Returns `true` if metadata associated with `x` has the key `k`.
 """
 has_metadata(x, k) = haskey(metadata(x), k)
 
 """
-    has_metadata(x::AbstractArray, k; dim) -> Bool
+    has_metadata(x::AbstractArray, k; dim)::Bool
 
 Returns `true` if metadata associated with dimension `dim` of `x` has the key `k`.
 """
@@ -263,7 +270,7 @@ function attach_metadata(x::AbstractRange, m=Dict{Symbol,Any}())
     if known_step(x) === oneunit(eltype(x))
         return MetaUnitRange(x, m)
     else
-        return MetaRange(x, m)
+        return MetaArray(x, m)
     end
 end
 attach_metadata(x::IO, m=Dict{Symbol,Any}()) = MetaIO(x, m)
@@ -557,8 +564,8 @@ macro metadata!(x, k, val)
 end
 
 """
-    @has_metadata(x) -> Bool
-    @has_metadata(x, k) -> Bool
+    @has_metadata(x)::Bool
+    @has_metadata(x, k)::Bool
 
 Does `x` have metadata stored in the curren modules' global metadata? Checks for the
 presenece of the key `k` if specified.
@@ -596,4 +603,3 @@ See also: [`@share_metadata`](@ref), [`copy_metadata`](@ref)
 macro copy_metadata(src, dst)
     return esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
 end
-
