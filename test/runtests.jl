@@ -158,15 +158,6 @@ end
     end
 end
 
-@testset "MetaRange" begin
-    x = 1:1:10
-    mx = Metadata.test_wrapper(Metadata.MetaRange, x)
-    @test mx[1] == 1
-    @test mx[1:2] == [1, 2]
-    @test metadata(mx[1:2]) == metadata(mx)
-    @test mx[:] == x[:]
-end
-
 @testset "MetaUnitRange" begin
     x = 1:10
     mx = Metadata.test_wrapper(Metadata.MetaUnitRange, x)

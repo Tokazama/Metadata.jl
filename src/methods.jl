@@ -1,63 +1,4 @@
 
-# TODO should drop_metadata be delete_metadata
-
-const modules = Module[]
-const GLOBAL_METADATA    = gensym(:metadata)
-
-"""
-    GlobalMetadata <: AbstractDict{UInt,Dict{Symbol,Any}}
-
-Stores metadata for instances of types at the module level. It has restricted support
-for dictionary methods to ensure that references aren't unintentionally 
-"""
-struct GlobalMetadata <: AbstractDict{UInt,MDict}
-    data::IdDict{UInt,MDict}
-
-    function GlobalMetadata(m::Module)
-        if !isdefined(m, GLOBAL_METADATA)
-            Core.eval(m, :(const $GLOBAL_METADATA = $(new(IdDict{UInt,Dict{Symbol,Any}}()))))
-            push!(modules, m)
-        end
-        return metadata(m)
-    end
-end
-
-data(m::GlobalMetadata) = getfield(m, :data)
-
-Base.get(m::GlobalMetadata, k::UInt, @nospecialize(default)) = get(data(m), k, default)
-
-Base.get!(m::GlobalMetadata, k::UInt, @nospecialize(default)) = get!(data(m), k, default)
-
-Base.isempty(m::GlobalMetadata) = isempty(data(m))
-
-Base.getindex(x::GlobalMetadata, k::UInt) = getindex(data(x), k)
-
-Base.setindex!(x::GlobalMetadata, v::MDict, k::UInt) = setindex!(data(x), v, k)
-
-Base.length(m::GlobalMetadata) = length(data(m))
-
-Base.keys(m::GlobalMetadata) = keys(data(m))
-
-Base.delete!(m::GlobalMetadata, k::UInt) = delete!(data(m), k)
-
-Base.iterate(m::GlobalMetadata) = iterate(data(m))
-Base.iterate(m::GlobalMetadata, state) = iterate(data(m), state)
-
-"""
-    NoMetadata
-
-Internal type for the `Metadata` package that indicates the absence of any metadata.
-_DO NOT_ store metadata with the value `NoMetadata()`.
-"""
-struct NoMetadata end
-
-const no_metadata = NoMetadata()
-
-Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
-
-Base.haskey(::NoMetadata, @nospecialize(k)) = false
-Base.get(::NoMetadata, @nospecialize(k), default) = default
-
 """
     metadata(x)
 
@@ -93,9 +34,11 @@ _metadata_dim(x::CartesianIndices, dim::StaticInt{D}) where {D} = metadata(getfi
 
 Returns the value associated with key `k` of `x`'s metadata.
 """
-metadata(x::AbstractDict, k) = getindex(x, k)
-metadata(x::NamedTuple, k) = getproperty(x, k)
-metadata(x, k) = get(metadata(x), k, no_metadata)
+function metadata(x, k)
+    out = getmeta(x, k, no_metadata)
+    out === no_metadata && throw(KeyError(k))
+    return out
+end
 function metadata(m::Module)
     if isdefined(m, GLOBAL_METADATA)
         return getfield(m, GLOBAL_METADATA)::GlobalMetadata
@@ -128,6 +71,8 @@ Set the value associated with key `k` of `x`'s metadata to `val`.
 """
 @inline metadata!(x, k, val) = metadata!(metadata(x), k, val)
 metadata!(x::AbstractDict, k, val) = setindex!(x, val, k)
+metadata!(m::AbstractDict{String}, k::Symbol, val) = setindex!(m, val, String(k))
+metadata!(m::AbstractDict{Symbol}, k::String, val) = setindex!(m, val, Symbol(k))
 
 """
     metadata!(x::AbstractArray, k, val; dim)
@@ -137,7 +82,7 @@ Set the value associated with key `k` of the metadata at dimension `dim` of `x` 
 metadata!(x::AbstractArray, k, val; dim=nothing) = metadata!(metadata(x; dim=dim), k, val)
 
 """
-    metadata_type(::Type{<:AbstractArray}; dim) -> Type
+    metadata_type(::Type{<:AbstractArray}; dim)::Type
 
 Returns the type of the metadata of `x`. If `dim` is specified then returns type of
 metadata associated with dimension `dim`.
@@ -159,7 +104,11 @@ _metadata_dim_type(::Type{T}, dim) where {T} = metadata_type(axes_types(T, dim))
 
 Return the metadata associated with `key`, or return `default` if `key` is not found.
 """
-@inline getmeta(x, k, default) = get(metadata(x), k, default)
+@inline getmeta(x, k, default) = _getmeta(metadata(x), k, default)
+_getmeta(m, k, default) = get(m, k, default)
+@inline _getmeta(m::AbstractDict{String}, k::Symbol, default) = get(m, String(k), default)
+@inline _getmeta(m::AbstractDict{Symbol}, k::String, default) = get(m, Symbol(k), default)
+@inline _getmeta(m::NamedTuple, k::String, default) = get(m, Symbol(k), default)
 
 """
     getmeta(f::Function, x, key)
@@ -168,8 +117,8 @@ Return the metadata associated with `key`, or return `f(x)` if `key` is not foun
 this behavior differs from `Base.get(::Function, x, keys)` in that `getmeta` passes `x` to
 `f` as an argument (as opposed to `f()`).
 """
-@inline function getmeta(f::Function, x, k)
-    m = get(metadata(x), k, no_metadata)
+@inline function getmeta(f::Union{Function,Type}, x, k)
+    m = getmeta(metadata(x), k, no_metadata)
     if m === no_metadata
         return f(x)
     else
@@ -183,7 +132,10 @@ end
 Return the metadata associated with `key`. If `key` is not found then `default` is returned
 and stored at `key`.
 """
-@inline getmeta!(x, k, default) = get!(metadata(x), k, default)
+@inline getmeta!(x, k, default) = _getmeta!(metadata(x), k, default)
+_getmeta!(m, k, default) = get!(m, k, default)
+@inline _getmeta!(m::AbstractDict{String}, k::Symbol, default) = get!(m, String(k), default)
+@inline _getmeta!(m::AbstractDict{Symbol}, k::String, default) = get!(m, Symbol(k), default)
 
 """
     getmeta!(f::Function, x, key)
@@ -213,9 +165,23 @@ metadata_type(::Type{T}) where {T<:AbstractDict} = T
 metadata_type(::Type{T}) where {T<:NamedTuple} = T
 metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
 metadata_type(::Type{MetaStruct{P,M}}) where {P,M} = M
+@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(A; dim=dim)
+    end
+end
+@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaUnitRange{<:Any,R,M}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(R; dim=dim)
+    end
+end
 
 """
-    has_metadata(x) -> Bool
+    has_metadata(x)::Bool
 
 Returns `true` if `x` has metadata.
 """
@@ -225,7 +191,7 @@ _has_metadata(::Type{NoMetadata}) = false
 _has_metadata(::Type{T}) where {T} = true
 
 """
-    has_metadata(x::AbstractArray; dim) -> Bool
+    has_metadata(x::AbstractArray; dim)::Bool
 
 Returns `true` if `x` has metadata associated with dimension `dim`.
 """
@@ -239,14 +205,14 @@ function has_metadata(::Type{T}; dim=nothing) where {T<:AbstractArray}
 end
 
 """
-    has_metadata(x, k) -> Bool
+    has_metadata(x, k)::Bool
 
 Returns `true` if metadata associated with `x` has the key `k`.
 """
 has_metadata(x, k) = haskey(metadata(x), k)
 
 """
-    has_metadata(x::AbstractArray, k; dim) -> Bool
+    has_metadata(x::AbstractArray, k; dim)::Bool
 
 Returns `true` if metadata associated with dimension `dim` of `x` has the key `k`.
 """
@@ -263,7 +229,7 @@ function attach_metadata(x::AbstractRange, m=Dict{Symbol,Any}())
     if known_step(x) === oneunit(eltype(x))
         return MetaUnitRange(x, m)
     else
-        return MetaRange(x, m)
+        return MetaArray(x, m)
     end
 end
 attach_metadata(x::IO, m=Dict{Symbol,Any}()) = MetaIO(x, m)
@@ -376,7 +342,8 @@ Creates summary readout of metadata for `x`.
 metadata_summary(x) = metadata_summary(stdout, x)
 function metadata_summary(io::IO, x)
     print(io, "$(lpad(Char(0x2022), 3)) metadata:")
-    if has_metadata(x, :suppress) && eltype(metadata(x, :suppress)) <: Symbol
+    suppress = getmeta(x, :suppress, no_metadata)
+    if suppress !== no_metadata
         suppress = metadata(x, :suppress)
         for k in metadata_keys(x)
             if k !== :suppress
@@ -447,11 +414,11 @@ function attach_global_metadata(x, meta, m::Module)
 end
 
 function _attach_global_metadata(x, xfield, m::Module)
+    there_is_no_finalizer = true
     if ismutable(x)
         _assign_global_metadata_finalizer(x, xfield, m)
         there_is_no_finalizer = false
     elseif isstructtype(typeof(x))
-        there_is_no_finalizer = true
         N = fieldcount(typeof(x))
         if N !== 0
             i = 1
@@ -460,8 +427,6 @@ function _attach_global_metadata(x, xfield, m::Module)
                 i += 1
             end
         end
-    else
-        there_is_no_finalizer = true
     end
     return there_is_no_finalizer
 end
@@ -476,29 +441,6 @@ function _assign_global_metadata_finalizer(x, xfield, m::Module)
         return true
     end
 end
-
-# iterate through fields until a mutable struct is found. Then use that field to
-#= enable the finalizer.
-function _attach_global_metadata_mutable(x, xfield, m)
-    i = 1
-    no_finalizer = true
-    for i in 1:fieldcount(typeof(xfield))
-    end
-
-    while (no_finalizer || i < fieldcount(typeof(xfield)))
-        field_i = getfield(xfield, i)
-        if Base.ismutable(field_i)
-            end
-            no_finalizer = false
-        elseif Base.isstructtype(typeof(field_i))
-            no_finalizer = _attach_global_metadata_mutable(x, field_i, m)
-        else
-            i += 1
-        end
-    end
-    return no_finalizer
-end
-=#
 
 delete_global_metadata!(x, m::Module) = delete!(metadata(m), objectid(x))
 
@@ -557,8 +499,8 @@ macro metadata!(x, k, val)
 end
 
 """
-    @has_metadata(x) -> Bool
-    @has_metadata(x, k) -> Bool
+    @has_metadata(x)::Bool
+    @has_metadata(x, k)::Bool
 
 Does `x` have metadata stored in the curren modules' global metadata? Checks for the
 presenece of the key `k` if specified.
@@ -596,4 +538,3 @@ See also: [`@share_metadata`](@ref), [`copy_metadata`](@ref)
 macro copy_metadata(src, dst)
     return esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
 end
-

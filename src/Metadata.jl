@@ -33,13 +33,10 @@ const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,An
 const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
 include("utils.jl")
-include("metastruct.jl")
+include("types.jl")
 include("methods.jl")
-include("metaarray.jl")
-include("ranges.jl")
-include("io.jl")
 
-for T in (MetaIO, MetaStruct, MetaArray, MetaRange, MetaUnitRange)
+for T in (MetaIO, MetaStruct, MetaArray, MetaUnitRange)
     @eval begin
         @inline function Metadata.metadata(x::$T; dim=nothing, kwargs...)
             if dim === nothing
@@ -52,8 +49,6 @@ for T in (MetaIO, MetaStruct, MetaArray, MetaRange, MetaUnitRange)
 end
 
 @defproperties MetaArray
-
-@defproperties MetaRange
 
 @defproperties MetaUnitRange
 
@@ -105,4 +100,3 @@ function test_wrapper(::Type{T}, data) where {T}
 end
 
 end # module
-
