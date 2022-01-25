@@ -112,18 +112,11 @@ attach_metadata(1:2, ::NamedTuple{(:m1, :m2), Tuple{Int64, Vector{Int64}}})
 
 ```
 """
-struct MetaUnitRange{T,P<:AbstractRange{T},M} <: AbstractUnitRange{T}
+struct MetaUnitRange{T,P<:AbstractUnitRange{T},M} <: AbstractUnitRange{T}
     parent::P
     metadata::M
 
-    function MetaUnitRange{T,P,M}(p::P, m::M) where {T,P,M}
-        if known_step(P) == oneunit(T)
-            return new{T,P,M}(p, m)
-        else
-            throw(ArgumentError("step must be 1, got $(step(p))"))
-        end
-    end
-
+    MetaUnitRange{T,P,M}(p::P, m::M) where {T,P,M} = new{T,P,M}(p, m)
     function MetaUnitRange{T}(p::AbstractRange, m) where {T}
         if eltype(p) <: T
             return MetaUnitRange{T,typeof(p),typeof(m)}(p, m)

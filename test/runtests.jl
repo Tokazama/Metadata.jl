@@ -174,7 +174,6 @@ end
     @test mx[1:2:10] == x[1:2:10]
     @test mx[:] == x[:]
     @test eltype(Metadata.MetaUnitRange{UInt}(1:10, nothing)) <: UInt
-    @test_throws ArgumentError Metadata.MetaUnitRange(1:3:10, nothing)
     Metadata.test_wrapper(Metadata.MetaUnitRange, 1:10)
 end
 
