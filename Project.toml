@@ -1,14 +1,14 @@
 name = "Metadata"
 uuid = "4fb893c1-3164-4f58-823a-cb4c64eabb4f"
 authors = ["Zachary P. Christensen <zchristensen7@gmail.com>"]
-version = "0.3.1"
+version = "0.3.2"
 
 [deps]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-ArrayInterface = "4"
+ArrayInterface = "5"
 julia = "1.6"
 
 [extras]
