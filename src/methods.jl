@@ -11,25 +11,6 @@ _metadata(::Type{P}, x::T) where {P,T} = metadata(parent(x))
 _metadata(::Type{T}, x::T) where {T} = no_metadata
 
 """
-    metadata(x::AbstractArray; dim)
-
-Returns the metadata associated with dimension `dim` of `x`.
-"""
-function metadata(x::AbstractArray; dim=nothing)
-    if dim === nothing
-        return _metadata(parent_type(x), x)
-    else
-        return _metadata_dim(x, to_dims(x, dim))
-    end
-end
-_metadata_dim(x, dim::Int) = metadata(axes(x, dim))
-_metadata_dim(x, dim::StaticInt{D}) where {D} = metadata(axes(x, dim))
-_metadata_dim(x::LinearIndices, dim::Int) = metadata(getfield(x.indices, dim))
-_metadata_dim(x::LinearIndices, dim::StaticInt{D}) where {D} = metadata(getfield(x.indices, D))
-_metadata_dim(x::CartesianIndices, dim::Int) = metadata(getfield(x.indices, dim))
-_metadata_dim(x::CartesianIndices, dim::StaticInt{D}) where {D} = metadata(getfield(x.indices, D))
-
-"""
     metadata(x, k)
 
 Returns the value associated with key `k` of `x`'s metadata.
@@ -48,24 +29,7 @@ function metadata(m::Module)
 end
 
 """
-    metadata(x::AbstractArray, k; dim)
-
-Returns the value associated with key `k` of `x`'s metadata.
-"""
-@inline function metadata(x::AbstractArray, k; dim=nothing)
-    if dim === nothing
-        if has_metadata(x)
-            return metadata(metadata(x), k)
-        else
-            return no_metadata
-        end
-    else
-        return metadata(metadata(x; dim=dim), k)
-    end
-end
-
-"""
-    metadata!(x::AbstractArray, k, val)
+    metadata!(x, k, val)
 
 Set the value associated with key `k` of `x`'s metadata to `val`.
 """
@@ -73,31 +37,6 @@ Set the value associated with key `k` of `x`'s metadata to `val`.
 metadata!(x::AbstractDict, k, val) = setindex!(x, val, k)
 metadata!(m::AbstractDict{String}, k::Symbol, val) = setindex!(m, val, String(k))
 metadata!(m::AbstractDict{Symbol}, k::String, val) = setindex!(m, val, Symbol(k))
-
-"""
-    metadata!(x::AbstractArray, k, val; dim)
-
-Set the value associated with key `k` of the metadata at dimension `dim` of `x` to `val`.
-"""
-metadata!(x::AbstractArray, k, val; dim=nothing) = metadata!(metadata(x; dim=dim), k, val)
-
-"""
-    metadata_type(::Type{<:AbstractArray}; dim)::Type
-
-Returns the type of the metadata of `x`. If `dim` is specified then returns type of
-metadata associated with dimension `dim`.
-"""
-metadata_type(x::AbstractArray; dim=nothing) = metadata_type(typeof(x); dim=dim)
-@inline function metadata_type(::Type{T}; dim=nothing) where {T<:AbstractArray}
-    if dim === nothing
-        return _metadata_type(parent_type(T), T)
-    else
-        return _metadata_dim_type(T, to_dims(T, dim))
-    end
-end
-_metadata_type(::Type{T}, ::Type{T}) where {T} = NoMetadata
-_metadata_type(::Type{P}, ::Type{T}) where {P,T} = metadata_type(P)
-_metadata_dim_type(::Type{T}, dim) where {T} = metadata_type(axes_types(T, dim))
 
 """
     getmeta(x, key, default)
@@ -161,24 +100,13 @@ Returns the type of the metadata associated with `x`.
 """
 metadata_type(x) = metadata_type(typeof(x))
 metadata_type(::Type{T}) where {T} = _metadata_type(parent_type(T), T)
+_metadata_type(::Type{T}, ::Type{T}) where {T} = NoMetadata
+_metadata_type(::Type{P}, ::Type{T}) where {P,T} = metadata_type(P)
 metadata_type(::Type{T}) where {T<:AbstractDict} = T
 metadata_type(::Type{T}) where {T<:NamedTuple} = T
 metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
-metadata_type(::Type{MetaStruct{P,M}}) where {P,M} = M
-@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(A; dim=dim)
-    end
-end
-@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaUnitRange{<:Any,R,M}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(R; dim=dim)
-    end
-end
+metadata_type(::Type{<:MetaStruct{<:Any,M}}) where {M} = M
+metadata_type(::Type{<:MetaUnitRange{<:Any,<:Any,M}}) where {M} = M
 
 """
     has_metadata(x)::Bool
@@ -191,32 +119,11 @@ _has_metadata(::Type{NoMetadata}) = false
 _has_metadata(::Type{T}) where {T} = true
 
 """
-    has_metadata(x::AbstractArray; dim)::Bool
-
-Returns `true` if `x` has metadata associated with dimension `dim`.
-"""
-has_metadata(x::AbstractArray; dim=nothing) = has_metadata(typeof(x); dim=dim)
-function has_metadata(::Type{T}; dim=nothing) where {T<:AbstractArray}
-    if dim === nothing
-        return _has_metadata(metadata_type(T))
-    else
-        return _has_metadata(metadata_type(T; dim=dim))
-    end
-end
-
-"""
     has_metadata(x, k)::Bool
 
 Returns `true` if metadata associated with `x` has the key `k`.
 """
 has_metadata(x, k) = haskey(metadata(x), k)
-
-"""
-    has_metadata(x::AbstractArray, k; dim)::Bool
-
-Returns `true` if metadata associated with dimension `dim` of `x` has the key `k`.
-"""
-has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 """
     attach_metadata(x, metadata)
@@ -265,14 +172,6 @@ Returns `x` without metadata attached.
 drop_metadata(x) = parent(x)
 
 # This allows dictionaries's keys to be treated like property names
-@inline function metadata_keys(x::AbstractArray; dim=nothing)
-    if has_metadata(x; dim=dim)
-        return metadata_keys(metadata(x; dim=dim))
-    else
-        return propertynames(x)
-    end
-end
-
 metadata_keys(x::AbstractDict) = keys(x)
 metadata_keys(::NamedTuple{L}) where {L} = L
 function metadata_keys(x::X) where {X}
@@ -471,7 +370,7 @@ global metadata.
 See also: [`GlobalMetadata`](@ref)
 """
 macro attach_metadata(x, meta)
-    return esc(:(Metadata.attach_global_metadata($x, $meta, @__MODULE__)))
+    esc(:(Metadata.attach_global_metadata($x, $meta, @__MODULE__)))
 end
 
 """
@@ -482,11 +381,11 @@ module's global metadata. If the key `k` is specified only the value associated 
 that key is returned.
 """
 macro metadata(x)
-    return esc(:(Metadata.global_metadata($(x), @__MODULE__)))
+    esc(:(Metadata.global_metadata($(x), @__MODULE__)))
 end
 
 macro metadata(x, k)
-    return esc(:(Metadata.global_metadata($(x), $(k), @__MODULE__)))
+    esc(:(Metadata.global_metadata($(x), $(k), @__MODULE__)))
 end
 
 """
@@ -506,10 +405,10 @@ Does `x` have metadata stored in the curren modules' global metadata? Checks for
 presenece of the key `k` if specified.
 """
 macro has_metadata(x)
-    return esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_metadata))
+    esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_metadata))
 end
 macro has_metadata(x, k)
-    return esc(:(haskey(Metadata.global_metadata($x, @__MODULE__), $k)))
+    esc(:(haskey(Metadata.global_metadata($x, @__MODULE__), $k)))
 end
 
 """
@@ -522,7 +421,7 @@ attaches it to `dst` through a global reference within the module.
 See also: [`@copy_metadata`](@ref), [`share_metadata`](@ref)
 """
 macro share_metadata(src, dst)
-    return esc(:(Metadata.attach_global_metadata($dst, Metadata.global_metadata($src, @__MODULE__), @__MODULE__)))
+    esc(:(Metadata.attach_global_metadata($dst, Metadata.global_metadata($src, @__MODULE__), @__MODULE__)))
 end
 
 """
@@ -536,5 +435,6 @@ attaches a new copy to `dst` through a global reference within the module.
 See also: [`@share_metadata`](@ref), [`copy_metadata`](@ref)
 """
 macro copy_metadata(src, dst)
-    return esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
+    esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
 end
+

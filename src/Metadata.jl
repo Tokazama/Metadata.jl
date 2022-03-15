@@ -6,8 +6,9 @@ module Metadata
 end Metadata
 
 using ArrayInterface
-using ArrayInterface: parent_type, known_first, known_last, known_step, StaticInt, to_dims, axes_types
+using ArrayInterface: parent_type, known_first, known_last, known_step, to_dims, axes_types
 using Base: @propagate_inbounds, OneTo
+using Static
 using Test
 
 export
@@ -34,6 +35,7 @@ const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
 include("utils.jl")
 include("types.jl")
+include("MetaArray.jl")
 include("methods.jl")
 
 for T in (MetaIO, MetaStruct, MetaArray, MetaUnitRange)
