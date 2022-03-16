@@ -16,8 +16,6 @@ export
     @metadata,
     @metadata!,
     @has_metadata,
-    @copy_metadata,
-    @share_metadata,
     attach_metadata,
     copy_metadata,
     getmeta,
@@ -33,30 +31,22 @@ const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,An
 # default dict
 const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
-include("utils.jl")
-include("types.jl")
+include("interface.jl")
+include("GlobalMetadata.jl")
+include("MetaStruct.jl")
+include("MetaIO.jl")
 include("MetaArray.jl")
+include("MetaUnitRange.jl")
 include("methods.jl")
+include("show.jl")
 
-for T in (MetaIO, MetaStruct, MetaArray, MetaUnitRange)
-    @eval begin
-        @inline function Metadata.metadata(x::$T; dim=nothing, kwargs...)
-            if dim === nothing
-                return getfield(x, :metadata)
-            else
-                return metadata(parent(x); dim=dim)
-            end
-        end
-    end
-end
+@_defmeta MetaArray
 
-@defproperties MetaArray
+@_defmeta MetaUnitRange
 
-@defproperties MetaUnitRange
+@_defmeta MetaStruct
 
-@defproperties MetaStruct
-
-@defproperties MetaIO
+@_defmeta MetaIO
 
 """
     test_wrapper(::Type{WrapperType}, x::X)
@@ -84,18 +74,18 @@ function test_wrapper(::Type{T}, data) where {T}
     metadata!(x, :m1, 1)
     @test metadata(x, :m1) == 1
 
+    #=
     y = share_metadata(x, ones(2, 2))
     @test y isa Metadata.MetaArray
     @test metadata(x) === metadata(y)
 
-    y = copy_metadata(x, ones(2, 2))
     @test y isa Metadata.MetaArray
     @test metadata(x) == metadata(y)
     @test metadata(x) !== metadata(y)
 
-    y = drop_metadata(x)
     @test !has_metadata(y)
     @test y == data
+    =#
 
     empty!(metadata(x))
     return x
