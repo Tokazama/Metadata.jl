@@ -58,4 +58,3 @@ end
 @propagate_inbounds function Base.getindex(r::MetaUnitRange, s::AbstractUnitRange{T}) where {T<:Integer}
     MetaUnitRange(getindex(parent(r), s), metadata(r))
 end
-

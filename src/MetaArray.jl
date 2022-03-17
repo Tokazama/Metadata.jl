@@ -25,18 +25,14 @@ struct MetaArray{T,N,A<:AbstractArray{T,N},M} <: AbstractArray{T, N}
     parent::A
     metadata::M
 
-    MetaArray{T,N,A,M}(a::A, m::M) where {T,N,A,M} = new{T,N,A,M}(a, m)
-    MetaArray{T,N,A,M}(a::A, m) where {T,N,A,M} = MetaArray{T,N,A,M}(a, M(m))
-    MetaArray{T,N,A,M}(a, m::M) where {T,N,A,M} = MetaArray{T,N,A,M}(A(a), m)
-    MetaArray{T,N,A,M}(a, m) where {T,N,A,M} = MetaArray{T,N,A,M}(A(a), M(m))
+    MetaArray{T,N,A,M}(a::AbstractArray{T,N}, m) where {T,N,A,M} = new{T,N,A,M}(a, m)
     MetaArray{T,N,A,M}(a::AbstractArray) where {T,N,A,M} = MetaArray{T,N,A,M}(a, M())
     function MetaArray{T,N,A,M}(::UndefInitializer, dims::Tuple) where {T,N,A,M}
         MetaArray{T,N,A,M}(A(undef, dims))
     end
 
     ### MetaArray{T,N,A}
-    MetaArray{T,N,A}(a::A, m::M) where {T,N,A,M} = MetaArray{T,N,A,M}(a, m)
-    MetaArray{T,N,A}(a, m) where {T,N,A} = MetaArray{T,N,A}(A(a), m)
+    MetaArray{T,N,A}(a::AbstractArray{T,N}, m::M) where {T,N,A,M} = MetaArray{T,N,A,M}(a, m)
     MetaArray{T,N,A}(a::MetaArray{T,N,A}) where {T,N,A} = a
     function MetaArray{T,N,A}(a::MetaArray) where {T,N,A}
         MetaArray{T,N,A}(A(parent(a)), metadata(a))
@@ -46,12 +42,8 @@ struct MetaArray{T,N,A<:AbstractArray{T,N},M} <: AbstractArray{T, N}
     MetaArray{T,N}(a::AbstractArray{T,N}, m) where {T,N} = MetaArray{T,N,typeof(a)}(a, m)
     MetaArray{T,N}(a::AbstractArray, m) where {T,N} = MetaArray{T,N}(AbstractArray{T,N}(a), m)
     MetaArray{T,N}(a::AbstractArray) where {T,N} = MetaArray{T,N}(a, Dict{Symbol,Any}())
-    function MetaArray{T,N}(::UndefInitializer, dims::Tuple) where {T,N}
-        MetaArray{T,N}(Array{T,N}(undef, dims))
-    end
-    function MetaArray{T,N}(a::MetaArray) where {T,N}
-        MetaArray{T,N}(AbstractArray{T,N}(parent(a)), metadata(a))
-    end
+    MetaArray{T,N}(::UndefInitializer, dims::Tuple) where {T,N} = MetaArray{T,N}(Array{T,N}(undef, dims))
+    MetaArray{T,N}(a::MetaArray) where {T,N} = AbstractArray{T,N}(parent(a))
     MetaArray{T,N}(a::MetaArray{T,N}) where {T,N} = a
 
     ### MetaArray{T}
@@ -59,7 +51,7 @@ struct MetaArray{T,N,A<:AbstractArray{T,N},M} <: AbstractArray{T, N}
     MetaArray{T}(a::AbstractArray, m) where {T} = MetaArray{T}(AbstractArray{T}(a), m)
     MetaArray{T}(a::AbstractArray) where {T} = MetaArray{T}(a, Dict{Symbol,Any}())
     MetaArray{T}(::UndefInitializer, dims::Tuple) where {T} = MetaArray{T}(Array{T}(undef, dims))
-    MetaArray{T}(a::MetaArray) where {T} = MetaArray{T}(AbstractArray{T}(parent(a)), metadata(a))
+    MetaArray{T}(a::MetaArray) where {T} = bstractArray{T}(parent(a))
     MetaArray{T}(a::MetaArray{T}) where {T} = a
 
     ### MetaArray
@@ -81,16 +73,6 @@ Base.AbstractArray{T}(x::MetaArray{T}) where {T} = x
 Base.AbstractArray{T}(x::MetaArray) where {T} = MetaArray(AbstractArray{T}(parent(x)), metadata(x))
 Base.AbstractArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
 Base.AbstractArray{T,N}(x::MetaArray) where {T,N} = MetaArray(AbstractArray{T,N}(parent(x)), metadata(x))
-
-# size
-Base.size(x::MetaArray, dim) = size(parent(x), to_dims(x, dim))
-Base.size(x::MetaArray) = size(parent(x))
-
-# axes
-Base.axes(x::MetaArray, dim) = axes(parent(x), to_dims(x, dim))
-Base.axes(x::MetaArray) = axes(parent(x))
-
-Base.length(x::MetaArray) = length(parent(x))
 
 Base.IndexStyle(::Type{T}) where {T<:MetaArray} = IndexStyle(parent_type(T))
 
@@ -138,6 +120,27 @@ end
 @inline function Base.permutedims(x::MetaArray{T,N}, perm::NTuple{N,Int}) where {T,N}
     attach_metadata(permutedims(getfield(x, :parent)), permute_metadata(getfield(x, :metadata), perm))
 end
+
+for f in [:size, :length, :axes, :eachindex, :firstindex, :lastindex, :first, :last,
+    :step, :dataids, :isreal, :iszero, :strides]
+    eval(:(Base.$(f)(x::MetaArray) = Base.$f(getfield(x, :parent))))
+end
+
+for f in [:prevind, :nextind,]
+    @eval function Base.$(f)(x::MetaArray{<:Any,N}, i::CartesianIndex{N}) where {N}
+        Base.$f(getfield(x, :parent), i)
+    end
+end
+
+for f in [:first, :last, :pointer, :isassigned, :nextind, :prevind]
+    eval(:(Base.$(f)(x::MetaArray, n::Integer) = Base.$f(getfield(x, :parent), n)))
+end
+
+for f in [:axes, :size, :stride]
+    eval(:(Base.$(f)(x::MetaArray, dim) = Base.$f(getfield(x, :parent), to_dims(x, dim))))
+    eval(:(Base.$(f)(x::MetaArray, dim::Integer) = Base.$f(getfield(x, :parent), dim)))
+end
+
 for f in [:adjoint, :permutedims]
     @eval begin
         function Base.$(f)(x::MetaVector)
@@ -157,21 +160,21 @@ for f in [:cumsum, :cumprod, :sort]
     end
 end
 
-for f in [:push!, :pushfirst!]
+for f in [:push!, :pushfirst!, :prepend!, :append!, :sizehint!, :resize!]
     @eval begin
-        function Base.$(f)(A::MetaVector, item)
+        function Base.$(f)(A::MetaArray, args...)
             can_change_size(A) || throw(MethodError($(f), (A, item)))
-            $(f)(getfield(A, :parent), item)
+            Base.$(f)(getfield(A, :parent), args...)
             return A
         end
     end
 end
 
-for f in [:empty!, :pop!, :popfirst!]
+for f in [:empty!, :pop!, :popfirst!, :popat!, :insert!, :deleteat!]
     @eval begin
-        function Base.$(f)(A::MetaVector)
+        function Base.$(f)(A::MetaArray, args...)
             can_change_size(A) || throw(MethodError($f, (A,)))
-            $(f)(getfield(A, :parent), item)
+            $(f)(getfield(A, :parent), args...)
             return A
         end
     end
