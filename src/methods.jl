@@ -71,28 +71,6 @@ Returns `true` if metadata associated with `x` has the key `k`.
 """
 has_metadata(x, k) = haskey(metadata(x), k)
 
-"""
-    share_metadata(src, dst) -> attach_metadata(dst, metadata(src))
-
-Shares the metadata from `src` by attaching it to `dst`.
-The returned instance will have properties that are synchronized with `src` (i.e.
-modifying one's metadata will effect the other's metadata).
-
-See also: [`copy_metadata`](@ref).
-"""
-share_metadata(src, dst) = attach_metadata(dst, metadata(src))
-
-"""
-    copy_metadata(src, dst) -> attach_metadata(dst, copy(metadata(src)))
-
-Copies the the metadata from `src` and attaches it to `dst`. Note that this method
-specifically calls `deepcopy` on the metadata of `src` to ensure that changing the
-metadata of `dst` does not affect the metadata of `src`.
-
-See also: [`share_metadata`](@ref).
-"""
-copy_metadata(src, dst) = attach_metadata(dst, deepcopy(metadata(src)))
-
 # This allows dictionaries's keys to be treated like property names
 metadata_keys(x::AbstractDict) = keys(x)
 metadata_keys(::NamedTuple{L}) where {L} = L

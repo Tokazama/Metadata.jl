@@ -17,14 +17,12 @@ export
     @metadata!,
     @has_metadata,
     attach_metadata,
-    copy_metadata,
     getmeta,
     getmeta!,
     has_metadata,
     metadata,
     metadata!,
-    metadata_type,
-    share_metadata
+    metadata_type
 
 const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,Any},<:NamedTuple}
 

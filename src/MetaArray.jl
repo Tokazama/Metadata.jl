@@ -71,19 +71,16 @@ end
 const MetaVector{T,A,M} = MetaArray{T,1,A,M}
 const MetaMatrix{T,A,M} = MetaArray{T,2,A,M}
 
-Base.AbstractArray{T}(x::MetaArray{T}) where {T} = x
-function Base.AbstractArray{T}(x::MetaArray) where {T}
-    MetaArray(AbstractArray{T}(parent(x)), metadata(x))
-end
-
-Base.AbstractArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
-function Base.AbstractArray{T,N}(x::MetaArray) where {T,N}
-    MetaArray(AbstractArray{T,N}(parent(x)), metadata(x))
-end
-
 ArrayInterface.parent_type(::Type{<:MetaArray{<:Any,<:Any,A}}) where {A} = A
 
 metadata_type(::Type{<:MetaArray{<:Any,<:Any,<:Any,M}}) where {M} = M
+
+ArrayInterface.can_change_size(::Type{MetaArray{<:Any,<:Any,P,M}}) where {P,M} = can_change_size(P)
+
+Base.AbstractArray{T}(x::MetaArray{T}) where {T} = x
+Base.AbstractArray{T}(x::MetaArray) where {T} = MetaArray(AbstractArray{T}(parent(x)), metadata(x))
+Base.AbstractArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
+Base.AbstractArray{T,N}(x::MetaArray) where {T,N} = MetaArray(AbstractArray{T,N}(parent(x)), metadata(x))
 
 # size
 Base.size(x::MetaArray, dim) = size(parent(x), to_dims(x, dim))
@@ -152,10 +149,10 @@ for f in [:adjoint, :permutedims]
     end
 end
 
-for f in [:cumsum, :cumprod]
+for f in [:cumsum, :cumprod, :sort]
     @eval begin
-        function Base.$(f)(A::MetaArray{T}; dims) where {T}
-            attach_metadata($(f)(getfield(A, :parent); dims=to_dims(A, dims)), propagate_metadata(getfield(A, :metadata)))
+        function Base.$(f)(A::MetaArray{T}; dims, kwargs...) where {T}
+            attach_metadata($(f)(getfield(A, :parent); dims=to_dims(A, dims), kwargs...), propagate_metadata(getfield(A, :metadata)))
         end
     end
 end

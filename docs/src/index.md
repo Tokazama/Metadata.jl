@@ -20,14 +20,6 @@ Metadata.@metadata
 Metadata.metadata!
 Metadata.@metadata!
 
-Metadata.copy_metadata
-Metadata.@copy_metadata
-
-Metadata.share_metadata
-Metadata.@share_metadata
-
-Metadata.drop_metadata
-
 Metadata.test_wrapper
 
 Metadata.getmeta
@@ -42,9 +34,5 @@ Metadata.metadata_summary
 Metadata.MetaArray
 Metadata.MetaRange
 Metadata.MetaUnitRange
-Metadata.MetadataPropagation
-Metadata.CopyMetadata
-Metadata.DropMetadata
-Metadata.ShareMetadata
 ```
 
