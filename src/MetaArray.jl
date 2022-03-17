@@ -203,4 +203,3 @@ Base.isequal(x::AbstractArray, y::MetaArray) = isequal(x, parent(y))
 Base.isapprox(x::MetaArray, y::MetaArray; kwargs...) = isapprox(parent(x), parent(y); kwargs...)
 Base.isapprox(x::MetaArray, y::AbstractArray; kwargs...) = isapprox(parent(x), y; kwargs...)
 Base.isapprox(x::AbstractArray, y::MetaArray; kwargs...) = isapprox(x, parent(y); kwargs...)
-
