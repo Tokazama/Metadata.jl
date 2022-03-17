@@ -67,14 +67,32 @@ ArrayInterface.parent_type(::Type{<:MetaArray{<:Any,<:Any,A}}) where {A} = A
 
 metadata_type(::Type{<:MetaArray{<:Any,<:Any,<:Any,M}}) where {M} = M
 
-ArrayInterface.can_change_size(::Type{MetaArray{<:Any,<:Any,P,M}}) where {P,M} = can_change_size(P)
-
 Base.AbstractArray{T}(x::MetaArray{T}) where {T} = x
 Base.AbstractArray{T}(x::MetaArray) where {T} = MetaArray(AbstractArray{T}(parent(x)), metadata(x))
 Base.AbstractArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
 Base.AbstractArray{T,N}(x::MetaArray) where {T,N} = MetaArray(AbstractArray{T,N}(parent(x)), metadata(x))
 
 Base.IndexStyle(::Type{T}) where {T<:MetaArray} = IndexStyle(parent_type(T))
+
+# ArrayInterface traits that just need the parent type
+for f in [:can_change_size, :defines_strides, :known_size, :known_length, :axes_types,
+   :known_offsets, :known_strides, :contiguous_axis, :contiguous_axis_indicator,
+   :stride_rank, :contiguous_batch_size]
+    eval(:(ArrayInterface.$(f)(::Type{<:MetaArray{T,N,P,M}}) where {T,N,P,M} = ArrayInterface.$(f)(P)))
+end
+
+# f(x::MetaArray) = f(parent(x))
+for (mod, funs) in (
+    (:Base, (:axes, :size, :strides,:length, :eachindex, :firstindex, :lastindex, :first,
+    :last, :step, :dataids, :isreal, :iszero,)),
+    (:ArrayInterface, (:axes, :strides, :offsets, :size)),
+)
+    for fun in funs
+        eval(:($(mod).$(fun)(x::MetaArray) = $(mod).$(fun)(getfield(x, :parent))))
+    end
+end
+
+
 
 for f in [:getindex, :view]
     unsafe = Symbol(:unsafe_, f)
@@ -106,9 +124,6 @@ function Base.setindex!(A::MetaArray, vals; kwargs...)
     @inbounds setindex!(getfield(A, :parent), vals, inds...)
 end
 
-function ArrayInterface.defines_strides(::Type{T}) where {T<:MetaArray}
-    ArrayInterface.defines_strides(parent_type(T))
-end
 function Base.accumulate(op, A::MetaArray; dims=nothing, kw...)
     if dims === nothing
         return attach_metadata(accumulate(op, parent(A); dims=dims, kw...), propagate_metadata(metadata(A)))
@@ -119,11 +134,6 @@ end
 
 @inline function Base.permutedims(x::MetaArray{T,N}, perm::NTuple{N,Int}) where {T,N}
     attach_metadata(permutedims(getfield(x, :parent)), permute_metadata(getfield(x, :metadata), perm))
-end
-
-for f in [:size, :length, :axes, :eachindex, :firstindex, :lastindex, :first, :last,
-    :step, :dataids, :isreal, :iszero, :strides]
-    eval(:(Base.$(f)(x::MetaArray) = Base.$f(getfield(x, :parent))))
 end
 
 for f in [:prevind, :nextind,]
@@ -180,6 +190,17 @@ for f in [:empty!, :pop!, :popfirst!, :popat!, :insert!, :deleteat!]
     end
 end
 
+#= f(x::MetaArray) = propagate_metadata(f, x)
+for (mod, funs) in (
+    (:Base, (:inv, )),
+    (:Statistics, (:mean, :std, :var, :median)),
+)
+    for fun in funs
+        eval(:($(mod).$(fun)(x::MetaArray) = propagate_metadata($(mod).$(fun), x)))
+    end
+end
+=#
+
 function Base.similar(x::MetaArray, ::Type{T}, dims::NTuple{N,Int}) where {T,N}
     attach_metadata(similar(getfield(x, :parent), T, dims), similar_metadata(getfield(x, :metadata), dims))
 end
@@ -203,3 +224,10 @@ Base.isequal(x::AbstractArray, y::MetaArray) = isequal(x, parent(y))
 Base.isapprox(x::MetaArray, y::MetaArray; kwargs...) = isapprox(parent(x), parent(y); kwargs...)
 Base.isapprox(x::MetaArray, y::AbstractArray; kwargs...) = isapprox(parent(x), y; kwargs...)
 Base.isapprox(x::AbstractArray, y::MetaArray; kwargs...) = isapprox(x, parent(y); kwargs...)
+
+function Base.read!(io::IO, a::MetaArray)
+    read!(io, parent(a))
+    return a
+end
+
+@inline Base.write(io::IO, a::MetaArray) = write(io, parent(a))
