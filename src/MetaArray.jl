@@ -1,4 +1,19 @@
 
+function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
+    for (k, v) in pairs(kwargs)
+        meta[k] = v
+    end
+    return meta
+end
+
+function _construct_meta(meta, kwargs::NamedTuple)
+    if isempty(kwargs)
+        return meta
+    else
+        error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
+    end
+end
+
 """
     MetaArray(parent::AbstractArray, metadata)
 

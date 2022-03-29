@@ -32,14 +32,14 @@ const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,An
 # default dict
 const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
-include("utils.jl")
 include("NoMetadata.jl")
+include("interface.jl")
 include("GlobalMetadata.jl")
 include("MetaStruct.jl")
 include("MetaIO.jl")
 include("MetaUnitRange.jl")
 include("MetaArray.jl")
-include("methods.jl")
+include("propagation.jl")
 include("show.jl")
 
 @defproperties MetaArray

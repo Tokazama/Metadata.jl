@@ -24,6 +24,14 @@ end
 
 metadata_type(::Type{Module}) = GlobalMetadata
 
+function metadata(m::Module)
+    if isdefined(m, GLOBAL_METADATA)
+        return getfield(m, GLOBAL_METADATA)::GlobalMetadata
+    else
+        return GlobalMetadata(m)
+    end
+end
+
 data(m::GlobalMetadata) = getfield(m, :data)
 
 Base.get(m::GlobalMetadata, k::UInt, @nospecialize(default)) = get(data(m), k, default)
@@ -125,7 +133,7 @@ global metadata.
 See also: [`GlobalMetadata`](@ref)
 """
 macro attach_metadata(x, meta)
-    return esc(:(Metadata.attach_global_metadata($x, $meta, @__MODULE__)))
+    esc(:(Metadata.attach_global_metadata($x, $meta, @__MODULE__)))
 end
 
 """
@@ -136,11 +144,11 @@ module's global metadata. If the key `k` is specified only the value associated 
 that key is returned.
 """
 macro metadata(x)
-    return esc(:(Metadata.global_metadata($(x), @__MODULE__)))
+    esc(:(Metadata.global_metadata($(x), @__MODULE__)))
 end
 
 macro metadata(x, k)
-    return esc(:(Metadata.global_metadata($(x), $(k), @__MODULE__)))
+    esc(:(Metadata.global_metadata($(x), $(k), @__MODULE__)))
 end
 
 """
@@ -149,7 +157,7 @@ end
 Set the value of `x`'s global metadata associated with the key `k` to `val`.
 """
 macro metadata!(x, k, val)
-    return esc(:(Metadata.global_metadata!($x, $k, $val, @__MODULE__)))
+    esc(:(Metadata.global_metadata!($x, $k, $val, @__MODULE__)))
 end
 
 """
@@ -160,10 +168,10 @@ Does `x` have metadata stored in the curren modules' global metadata? Checks for
 presenece of the key `k` if specified.
 """
 macro has_metadata(x)
-    return esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_metadata))
+    esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_metadata))
 end
 macro has_metadata(x, k)
-    return esc(:(haskey(Metadata.global_metadata($x, @__MODULE__), $k)))
+    esc(:(haskey(Metadata.global_metadata($x, @__MODULE__), $k)))
 end
 
 """
@@ -176,7 +184,7 @@ attaches it to `dst` through a global reference within the module.
 See also: [`@copy_metadata`](@ref), [`share_metadata`](@ref)
 """
 macro share_metadata(src, dst)
-    return esc(:(Metadata.attach_global_metadata($dst, Metadata.global_metadata($src, @__MODULE__), @__MODULE__)))
+    esc(:(Metadata.attach_global_metadata($dst, Metadata.global_metadata($src, @__MODULE__), @__MODULE__)))
 end
 
 """
@@ -190,6 +198,6 @@ attaches a new copy to `dst` through a global reference within the module.
 See also: [`@share_metadata`](@ref), [`copy_metadata`](@ref)
 """
 macro copy_metadata(src, dst)
-    return esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
+    esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
 end
 

@@ -39,13 +39,6 @@ function metadata(x, k)
     out === no_metadata && throw(KeyError(k))
     return out
 end
-function metadata(m::Module)
-    if isdefined(m, GLOBAL_METADATA)
-        return getfield(m, GLOBAL_METADATA)::GlobalMetadata
-    else
-        return GlobalMetadata(m)
-    end
-end
 
 """
     metadata(x::AbstractArray, k; dim)
@@ -209,127 +202,93 @@ Generic method for attaching metadata to `x`.
 """
 attach_metadata(x, m=Dict{Symbol,Any}()) = MetaStruct(x, m)
 attach_metadata(x::AbstractArray, m=Dict{Symbol,Any}()) = MetaArray(x, m)
-function attach_metadata(x::AbstractRange, m=Dict{Symbol,Any}())
-    if known_step(x) === oneunit(eltype(x))
-        return MetaUnitRange(x, m)
-    else
-        return MetaArray(x, m)
-    end
-end
+attach_metadata(x::AbstractUnitRange, m=Dict{Symbol,Any}()) = MetaUnitRange(x, m)
 attach_metadata(x::IO, m=Dict{Symbol,Any}()) = MetaIO(x, m)
 attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, m)
 
-"""
-    share_metadata(src, dst) -> attach_metadata(dst, metadata(src))
-
-Shares the metadata from `src` by attaching it to `dst`.
-The returned instance will have properties that are synchronized with `src` (i.e.
-modifying one's metadata will effect the other's metadata).
-
-See also: [`copy_metadata`](@ref).
-"""
-share_metadata(src, dst) = attach_metadata(dst, metadata(src))
-
-"""
-    copy_metadata(src, dst) -> attach_metadata(dst, copy(metadata(src)))
-
-Copies the the metadata from `src` and attaches it to `dst`. Note that this method
-specifically calls `deepcopy` on the metadata of `src` to ensure that changing the
-metadata of `dst` does not affect the metadata of `src`.
-
-See also: [`share_metadata`](@ref).
-"""
-copy_metadata(src, dst) = attach_metadata(dst, deepcopy(metadata(src)))
-
-"""
-    drop_metadata(x)
-
-Returns `x` without metadata attached.
-"""
-drop_metadata(x) = parent(x)
-
-# This allows dictionaries's keys to be treated like property names
-@inline function metadata_keys(x::AbstractArray; dim=nothing)
-    if has_metadata(x; dim=dim)
-        return metadata_keys(metadata(x; dim=dim))
+## macro utilities
+argexpr(e::Symbol) = e
+function argexpr(e::Expr)
+    if e.head === :(::)
+        return argexpr(e.args[1])
+    elseif e.head === :macrocall
+        return argexpr(e.args[3])
     else
-        return propertynames(x)
+        return e
     end
 end
 
-metadata_keys(x::AbstractDict) = keys(x)
-metadata_keys(::NamedTuple{L}) where {L} = L
-function metadata_keys(x::X) where {X}
-    if has_metadata(X)
-        return metadata_keys(metadata(x))
+macro unwrap(e::Expr)
+    _unwrap(2, e)
+end
+macro unwrap(pos::Int, e::Expr)
+    _unwrap(pos + 1, e)
+end
+
+function _unwrap(pos::Int, e::Expr)
+    if e.head === :macrocall
+        call_expr = e.args[3]
+        mcall = e.args[1]
+        mline = e.args[2]
+    else  # e.head === :call
+        call_expr = e.args
+        mcall = nothing
+        mline = nothing
+    end
+
+    body = Expr(:block, Expr(:call, call_expr[1]))
+    body_call = body.args[1]
+    thunk = Expr(:call, call_expr[1])
+    for i in 2:length(call_expr)
+        if i === pos
+            p = gensym(:parent)
+            push!(thunk.args, :(@nospecialize($(call_expr[i]))))
+            pushfirst!(body.args, Expr(:(=), p, :(parent($(argexpr(call_expr[i]))))))
+            push!(body_call.args, p)
+        else
+            push!(thunk.args, call_expr[i])
+            push!(body_call.args, argexpr(call_expr[i]))
+        end
+    end
+    body = Expr(:block, body)
+    if mcall !== nothing
+        return esc(Expr(:macrocall, mcall, mline, Expr(:(=), thunk, body)))
     else
-        return propertynames(x)
+        return esc(Expr(:(=), thunk, body))
     end
 end
 
-"""
-    MetadataPropagation(::Type{T})
+macro defproperties(T)
+    esc(quote
+        Base.parent(x::$T) = getfield(x, :parent)
 
-Returns type informing how to propagate metadata of type `T`.
-See [`DropMetadata`](@ref), [`CopyMetadata`](@ref), [`ShareMetadata`](@ref).
-"""
-abstract type MetadataPropagation end
+        @inline function Metadata.metadata(x::$T; dim=nothing, kwargs...)
+            if dim === nothing
+                return getfield(x, :metadata)
+            else
+                return metadata(parent(x); dim=dim)
+            end
+        end
 
-"""
-    DropMetadata
+        Base.getproperty(x::$T, k::String) = Metadata.metadata(x, k)
+        @inline function Base.getproperty(x::$T, k::Symbol)
+            if hasproperty(parent(x), k)
+                return getproperty(parent(x), k)
+            else
+                return Metadata.metadata(x, k)
+            end
+        end
 
-Informs operations that may propagate metadata to insead drop it.
-"""
-struct DropMetadata <: MetadataPropagation end
+        Base.setproperty!(x::$T, k::String, v) = Metadata.metadata!(x, k, v)
+        @inline function Base.setproperty!(x::$T, k::Symbol, val)
+            if hasproperty(parent(x), k)
+                return setproperty!(parent(x), k, val)
+            else
+                return Metadata.metadata!(x, k, val)
+            end
+        end
 
-"""
-    CopyMetadata
-
-Informs operations that may propagate metadata to attach a copy to any new instance created.
-"""
-struct CopyMetadata <: MetadataPropagation end
-
-"""
-    ShareMetadata
-
-Informs operations that may propagate metadata to attach a the same metadata to
-any new instance created.
-"""
-struct ShareMetadata <: MetadataPropagation end
-
-MetadataPropagation(x) = MetadataPropagation(typeof(x))
-MetadataPropagation(::Type{T}) where {T} = MetadataPropagation(metadata_type(T))
-MetadataPropagation(::Type{T}) where {T<:AbstractDict} = ShareMetadata()
-MetadataPropagation(::Type{T}) where {T<:NamedTuple} = ShareMetadata()
-MetadataPropagation(::Type{T}) where {T<:NoMetadata} = DropMetadata()
-
-function propagate_metadata(src, dst)
-    return propagate_metadata(MetadataPropagation(src), src, dst)
-end
-propagate_metadata(::DropMetadata, src, dst) = dst
-propagate_metadata(::ShareMetadata, src, dst) = share_metadata(src, dst)
-propagate_metadata(::CopyMetadata, src, dst) = copy_metadata(src, dst)
-
-function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}
-    if P <: Number
-        return DropMetadata()
-    else
-        return ShareMetadata()
-    end
-end
-
-function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
-    for (k, v) in pairs(kwargs)
-        meta[k] = v
-    end
-    return meta
-end
-
-function _construct_meta(meta, kwargs::NamedTuple)
-    if isempty(kwargs)
-        return meta
-    else
-        error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
-    end
+        @inline Base.propertynames(x::$T) = Metadata.metadata_keys(x)
+    end)
 end
 

@@ -11,6 +11,4 @@ const no_metadata = NoMetadata()
 
 Base.haskey(::NoMetadata, @nospecialize(k)) = false
 Base.get(::NoMetadata, @nospecialize(k), default) = default
-Base.getindex(::NoMetadata, @nospecialize(k)) = no_metadata
-Base.getproperty(::NoMetadata, ::Symbol) = no_metadata
 
