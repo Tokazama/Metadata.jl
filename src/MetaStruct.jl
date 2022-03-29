@@ -1,0 +1,33 @@
+
+"""
+    MetaStruct(p, m)
+
+Binds a parent instance (`p`) to some metadata (`m`). `MetaStruct` is the generic type
+constructed when `attach_metadata(p, m)` is called.
+
+See also: [`attach_metadata`](@ref), [`attach_eachmeta`](@ref)
+"""
+struct MetaStruct{P,M}
+    parent::P
+    metadata::M
+end
+
+ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
+
+Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
+
+function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
+    print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
+    Metadata.metadata_summary(io, x)
+end
+
+Base.copy(x::MetaStruct) = propagate_metadata(x, deepcopy(parent(x)))
+
+@_define_function_no_prop(Base,  ==, MetaStruct, MetaStruct)
+@_define_function_no_prop_first(Base,  ==, MetaStruct, Any)
+@_define_function_no_prop_last(Base,  ==, Any, MetaStruct)
+@_define_function_no_prop_first(Base,  ==, MetaStruct, Missing)
+@_define_function_no_prop_last(Base,  ==, Missing, MetaStruct)
+@_define_function_no_prop_first(Base,  ==, MetaStruct, WeakRef)
+@_define_function_no_prop_last(Base,  ==, WeakRef, MetaStruct)
+

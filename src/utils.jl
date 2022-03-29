@@ -21,6 +21,16 @@ end
 
 macro defproperties(T)
     esc(quote
+        Base.parent(x::$T) = getfield(x, :parent)
+
+        @inline function Metadata.metadata(x::$T; dim=nothing, kwargs...)
+            if dim === nothing
+                return getfield(x, :metadata)
+            else
+                return metadata(parent(x); dim=dim)
+            end
+        end
+
         Base.getproperty(x::$T, k::String) = Metadata.metadata(x, k)
         @inline function Base.getproperty(x::$T, k::Symbol)
             if hasproperty(parent(x), k)

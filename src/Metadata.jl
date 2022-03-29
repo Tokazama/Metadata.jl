@@ -33,20 +33,13 @@ const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,An
 const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
 include("utils.jl")
-include("types.jl")
+include("NoMetadata.jl")
+include("GlobalMetadata.jl")
+include("MetaStruct.jl")
+include("MetaIO.jl")
+include("MetaUnitRange.jl")
+include("MetaArray.jl")
 include("methods.jl")
-
-for T in (MetaIO, MetaStruct, MetaArray, MetaUnitRange)
-    @eval begin
-        @inline function Metadata.metadata(x::$T; dim=nothing, kwargs...)
-            if dim === nothing
-                return getfield(x, :metadata)
-            else
-                return metadata(parent(x); dim=dim)
-            end
-        end
-    end
-end
 
 @defproperties MetaArray
 
