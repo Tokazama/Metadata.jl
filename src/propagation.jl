@@ -99,3 +99,20 @@ function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}
 end
 
 
+""" propagate_metadata """
+propagate_metadata(m) = m
+
+# TODO
+""" index_metadata """
+index_metadata(m, inds::Tuple) = m
+
+# TODO
+""" permute_metadata """
+permute_metadata(m) = m
+permute_metadata(m, perm::Tuple) = m
+
+""" similar_metadata """
+similar_metadata(m, dims::Tuple) = m
+
+#propagate_metadata(m::M, f::F, args::Tuple, kwargs::Base.Pairs) where {M,F}
+
