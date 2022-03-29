@@ -9,8 +9,6 @@ struct NoMetadata end
 
 const no_metadata = NoMetadata()
 
-Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
-
 Base.haskey(::NoMetadata, @nospecialize(k)) = false
 Base.get(::NoMetadata, @nospecialize(k), default) = default
 Base.getindex(::NoMetadata, @nospecialize(k)) = no_metadata

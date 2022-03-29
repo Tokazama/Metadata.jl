@@ -163,22 +163,6 @@ metadata_type(x) = metadata_type(typeof(x))
 metadata_type(::Type{T}) where {T} = _metadata_type(parent_type(T), T)
 metadata_type(::Type{T}) where {T<:AbstractDict} = T
 metadata_type(::Type{T}) where {T<:NamedTuple} = T
-metadata_type(::Type{T}) where {T<:Module} = GlobalMetadata
-metadata_type(::Type{MetaStruct{P,M}}) where {P,M} = M
-@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(A; dim=dim)
-    end
-end
-@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaUnitRange{<:Any,R,M}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(R; dim=dim)
-    end
-end
 
 """
     has_metadata(x)::Bool
@@ -333,48 +317,6 @@ function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}
         return ShareMetadata()
     end
 end
-
-"""
-    metadata_summary([io], x)
-
-Creates summary readout of metadata for `x`.
-"""
-metadata_summary(x) = metadata_summary(stdout, x)
-function metadata_summary(io::IO, x)
-    print(io, "$(lpad(Char(0x2022), 3)) metadata:")
-    suppress = getmeta(x, :suppress, no_metadata)
-    if suppress !== no_metadata
-        suppress = metadata(x, :suppress)
-        for k in metadata_keys(x)
-            if k !== :suppress
-                println(io)
-                print(io, "     ")
-                print(io, "$k")
-                print(io, " = ")
-                if in(k, suppress)
-                    print(io, "<suppressed>")
-                else
-                    print(io, metadata(x, k))
-                end
-            end
-        end
-    else
-        for k in metadata_keys(x)
-            println(io)
-            print(io, "     ")
-            print(io, "$k")
-            print(io, " = ")
-            print(io, metadata(x, k))
-        end
-    end
-end
-
-# this is a currently informal way of changing how showarg displays metadata in
-# the argument list. If someone makes a metadata type that's long or complex they
-# may want to overload this.
-#
-# - used within Base.showarg for MetaArray
-showarg_metadata(x) = "::$(metadata_type(x))"
 
 function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
     for (k, v) in pairs(kwargs)

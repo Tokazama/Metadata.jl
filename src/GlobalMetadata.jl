@@ -22,6 +22,8 @@ struct GlobalMetadata <: AbstractDict{UInt,MDict}
     end
 end
 
+metadata_type(::Type{Module}) = GlobalMetadata
+
 data(m::GlobalMetadata) = getfield(m, :data)
 
 Base.get(m::GlobalMetadata, k::UInt, @nospecialize(default)) = get(data(m), k, default)
@@ -190,3 +192,4 @@ See also: [`@share_metadata`](@ref), [`copy_metadata`](@ref)
 macro copy_metadata(src, dst)
     return esc(:(Metadata.attach_global_metadata($dst, deepcopy(Metadata.metadata($src)), @__MODULE__)))
 end
+

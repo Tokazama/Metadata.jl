@@ -40,6 +40,7 @@ include("MetaIO.jl")
 include("MetaUnitRange.jl")
 include("MetaArray.jl")
 include("methods.jl")
+include("show.jl")
 
 @defproperties MetaArray
 

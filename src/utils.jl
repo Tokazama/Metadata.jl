@@ -1,22 +1,53 @@
 
-# m = module
-# f = function
-# `no_prop` = do not propagate properties/metadata
-# `first` means use parent(x) 
-# `last` means parent(y)
-macro _define_function_no_prop(m, f, T1)
-    esc(:($m.$f(@nospecialize(x::$(T1))) = $m.$f(parent(x))))
-end
-macro _define_function_no_prop(m, f, T1, T2)
-    esc(:($m.$f(x::$(T1), y::$(T2)) = $m.$f(parent(x), parent(y))))
-end
-
-macro _define_function_no_prop_first(m, f, T1, T2)
-    esc(:($m.$f(@nospecialize(x::$T1), y::$T2) = $m.$f(parent(x), y)))
+argexpr(e::Symbol) = e
+function argexpr(e::Expr)
+    if e.head === :(::)
+        return argexpr(e.args[1])
+    elseif e.head === :macrocall
+        return argexpr(e.args[3])
+    else
+        return e
+    end
 end
 
-macro _define_function_no_prop_last(m, f, T1, T2)
-    esc(:($m.$f(x::$T1, @nospecialize(y::$T2)) = $m.$f(x, parent(y))))
+macro unwrap(e::Expr)
+    _unwrap(2, e)
+end
+macro unwrap(pos::Int, e::Expr)
+    _unwrap(pos + 1, e)
+end
+
+function _unwrap(pos::Int, e::Expr)
+    if e.head === :macrocall
+        call_expr = e.args[3]
+        mcall = e.args[1]
+        mline = e.args[2]
+    else  # e.head === :call
+        call_expr = e.args
+        mcall = nothing
+        mline = nothing
+    end
+
+    body = Expr(:block, Expr(:call, call_expr[1]))
+    body_call = body.args[1]
+    thunk = Expr(:call, call_expr[1])
+    for i in 2:length(call_expr)
+        if i === pos
+            p = gensym(:parent)
+            push!(thunk.args, :(@nospecialize($(call_expr[i]))))
+            pushfirst!(body.args, Expr(:(=), p, :(parent($(argexpr(call_expr[i]))))))
+            push!(body_call.args, p)
+        else
+            push!(thunk.args, call_expr[i])
+            push!(body_call.args, argexpr(call_expr[i]))
+        end
+    end
+    body = Expr(:block, body)
+    if mcall !== nothing
+        return esc(Expr(:macrocall, mcall, mline, Expr(:(=), thunk, body)))
+    else
+        return esc(Expr(:(=), thunk, body))
+    end
 end
 
 macro defproperties(T)

@@ -80,33 +80,49 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
 end
 
 ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
-
-Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
-
-function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
-    summary(io, X)
-    isempty(X) && return
-    Base.show_circular(io, X) && return
-
-    if !haskey(io, :compact) && length(axes(X, 2)) > 1
-        io = IOContext(io, :compact => true)
-    end
-    if get(io, :limit, false) && eltype(X) === Method
-        io = IOContext(io, :limit => false)
-    end
-
-    if get(io, :limit, false) && Base.displaysize(io)[1] - 4 <= 0
-        return print(io, " …")
+@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
+    if dim === nothing
+        return M
     else
-        println(io)
+        return metadata_type(A; dim=dim)
     end
-
-    io = IOContext(io, :typeinfo => eltype(X))
-
-    recur_io = IOContext(io, :SHOWN_SET => X)
-    Base.print_array(recur_io, parent(X))
 end
 
+@unwrap Base.axes(x::MetaArray)
+
+@unwrap Base.size(x::MetaArray)
+
+@unwrap Base.strides(x::MetaArray)
+
+@unwrap Base.length(x::MetaArray)
+
+@unwrap Base.eachindex(x::MetaArray)
+
+@unwrap Base.firstindex(x::MetaArray)
+
+@unwrap Base.lastindex(x::MetaArray)
+
+@unwrap Base.first(x::MetaArray)
+
+@unwrap Base.step(x::MetaArray)
+
+@unwrap Base.last(x::MetaArray)
+
+@unwrap Base.dataids(x::MetaArray)
+
+@unwrap Base.isreal(x::MetaArray)
+
+@unwrap Base.iszero(x::MetaArray)
+
+@unwrap ArrayInterface.axes(x::MetaArray)
+
+@unwrap ArrayInterface.strides(x::MetaArray)
+
+@unwrap ArrayInterface.offsets(x::MetaArray)
+
+@unwrap ArrayInterface.size(x::MetaArray)
+
+Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
 function Base.similar(x::MetaArray, ::Type{T}, dims::NTuple{N,Int}) where {T,N}
     return Metadata.share_metadata(x, similar(parent(x), T, dims))
 end
@@ -121,19 +137,6 @@ function Base.similar(
 end
 function Base.similar(x::MetaArray, ::Type{T}, dims::Tuple{Integer, Vararg{Integer}}) where {T}
     return Metadata.propagate_metadata(x, similar(parent(x), T, dims))
-end
-
-Base.summary(io::IO, x::MetaArray) = Base.showarg(io, x, true)
-function Base.showarg(io::IO, x::MetaArray, toplevel)
-    if toplevel
-        print(io, Base.dims2string(length.(axes(x))), " ")
-    end
-    print(io, "attach_metadata(")
-    Base.showarg(io, parent(x), false)
-    print(io, ", ", showarg_metadata(x))
-    println(io)
-    metadata_summary(io, x)
-    print(io, "\n)")
 end
 
 function ArrayInterface.defines_strides(::Type{T}) where {T<:MetaArray}

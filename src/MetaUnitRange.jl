@@ -34,11 +34,17 @@ struct MetaUnitRange{T,P<:AbstractUnitRange{T},M} <: AbstractUnitRange{T}
 end
 
 ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
+@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaUnitRange{<:Any,R,M}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(R; dim=dim)
+    end
+end
 
-@_define_function_no_prop(Base, first, MetaUnitRange)
-@_define_function_no_prop(Base, step, MetaUnitRange)
-@_define_function_no_prop(Base, last, MetaUnitRange)
-@_define_function_no_prop(Base, length, MetaUnitRange)
+@unwrap Base.first(x::MetaUnitRange)
+@unwrap Base.last(x::MetaUnitRange)
+@unwrap Base.length(x::MetaUnitRange)
 
 Base.@propagate_inbounds Base.getindex(r::MetaUnitRange, i::Integer) = parent(r)[i]
 
@@ -47,17 +53,6 @@ ArrayInterface.known_first(::Type{T}) where {T<:MetaUnitRange} = known_first(par
 ArrayInterface.known_last(::Type{T}) where {T<:MetaUnitRange} = known_last(parent_type(T))
 
 @propagate_inbounds Base.getindex(r::MetaUnitRange, i) = propagate_metadata(r, parent(r)[i])
-
-function Base.show(io::IO, m::MIME"text/plain", x::MetaUnitRange)
-    if haskey(io, :compact)
-        show(io, parent(x))
-    else
-        print(io, "attach_metadata(")
-        print(io, parent(x))
-        print(io, ", ", Metadata.showarg_metadata(x), ")\n")
-        Metadata.metadata_summary(io, x)
-    end
-end
 
 @propagate_inbounds function Base.getindex(r::MetaUnitRange, s::StepRange{T}) where T<:Integer
     return propagate_metadata(r, getindex(parent(r), s))

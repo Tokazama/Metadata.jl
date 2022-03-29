@@ -12,22 +12,19 @@ struct MetaStruct{P,M}
     metadata::M
 end
 
-ArrayInterface.parent_type(::Type{MetaStruct{P,M}}) where {P,M} = P
+ArrayInterface.parent_type(::Type{<:MetaStruct{P}}) where {P} = P
+
+metadata_type(::Type{<:MetaStruct{<:Any,M}}) where {M} = M
 
 Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
 
-function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
-    print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
-    Metadata.metadata_summary(io, x)
-end
-
 Base.copy(x::MetaStruct) = propagate_metadata(x, deepcopy(parent(x)))
 
-@_define_function_no_prop(Base,  ==, MetaStruct, MetaStruct)
-@_define_function_no_prop_first(Base,  ==, MetaStruct, Any)
-@_define_function_no_prop_last(Base,  ==, Any, MetaStruct)
-@_define_function_no_prop_first(Base,  ==, MetaStruct, Missing)
-@_define_function_no_prop_last(Base,  ==, Missing, MetaStruct)
-@_define_function_no_prop_first(Base,  ==, MetaStruct, WeakRef)
-@_define_function_no_prop_last(Base,  ==, WeakRef, MetaStruct)
+@unwrap 1 Base.:(==)(x::MetaStruct, y::MetaStruct)
+@unwrap 2 Base.:(==)(x::Any, y::MetaStruct)
+@unwrap 1 Base.:(==)(x::MetaStruct, y::Any)
+@unwrap 2 Base.:(==)(x::Missing, y::MetaStruct)
+@unwrap 1 Base.:(==)(x::MetaStruct, y::Missing)
+@unwrap 2 Base.:(==)(x::WeakRef, y::MetaStruct)
+@unwrap 1 Base.:(==)(x::MetaStruct, y::WeakRef)
 
