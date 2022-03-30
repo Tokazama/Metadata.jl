@@ -27,4 +27,3 @@ Base.copy(x::MetaStruct) = propagate_metadata(x, deepcopy(parent(x)))
 @unwrap 1 Base.:(==)(x::MetaStruct, y::Missing)
 @unwrap 2 Base.:(==)(x::WeakRef, y::MetaStruct)
 @unwrap 1 Base.:(==)(x::MetaStruct, y::WeakRef)
-
