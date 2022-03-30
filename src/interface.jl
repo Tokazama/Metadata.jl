@@ -1,53 +1,5 @@
 
 """
-    is_attribute(::Type{M}, attr)::StaticBool
-
-Returns `True()` if the type `M` corresponds to the attribute `attr`. Otherwise returns `False`.
-"""
-@inline is_attribute(@nospecialize(m), attr::A) where {A} = is_attribute(typeof(m), attr)
-@inline function is_attribute(::Type{M}, attr::A) where {M,A}
-    if attribute(M) isa A
-        return True()
-    else
-        return False()
-    end
-end
-
-"""
-    has_attribute(::Type{T}, attr)::StaticBool
-
-Returns `True()` if the attribute `T` has metadata at any nested level associated with is
-`attr`. Otherwise returns `False`.
-"""
-function has_attribute(::Type{T}, attr::A) where {T,A}
-    _has_attribute(is_attribute(metadata_type(T), attr), T, attr)
-end
-_has_attribute(::True, ::Type{T}, attr::A) where {T,A} = True()
-_has_attribute(::False, ::Type{T}, attr::A) where {T,A} = parent_has_attribute(T, attr)
-
-# `parent_has_attribute(::Type{T}, attr)`
-function parent_has_attribute(::Type{T}, attr::A) where {T,A}
-    _parent_has_attribute(T, parent_type(T), attr)
-end
-_parent_has_attribute(::Type{T}, ::Type{T}, attr::A) where {T,A} = False()
-_parent_has_attribute(::Type{T1}, ::Type{T2}, attr::A) where {T1,T2,A} = has_attribute(T2, attr)
-
-"""
-    strip_attribute(x, attr) -> parent, metadata
-
-Returns `x` stripped of metadata specific to the metadata accessor `getter`.
-"""
-@inline function strip_attribute(x::X, attr::A) where {X,A}
-    _strip_attribute(has_attribute(X, attr), is_metadata(metadata_type(X), attr), attr)
-end
-_strip_attribute(::True, ::True, x, attr) = parent(x), metadata(x)
-_strip_attribute(::False, ::False, x, attr) = x, no_metadata
-@inline function _strip_attribute(::True, ::False, x, attr)
-    p, m = strip_attribute(parent(x), attr)
-    return attribute_metadata(p, metadata(x)), m
-end
-
-"""
     metadata(x)
 
 Returns metadata associated with `x`
@@ -58,53 +10,6 @@ metadata(x::NamedTuple) = x
 _metadata(::Type{P}, x::T) where {P,T} = metadata(parent(x))
 _metadata(::Type{T}, x::T) where {T} = no_metadata
 
-"""
-    properties(x)
-
-Returns a dictionary of properties properties associated with `x`.
-"""
-function properties end
-
-"""
-    annotation(x)
-
-Returns the annotation associated with `x`.
-"""
-function annotation end
-
-"""
-    attribute(::Type{M})
-
-Returns the attribute associated with the metadata type `M`. If this method is not specified,
-for `M`, then [`metadata`](@ref) is returned.
-"""
-@inline attribute(@nospecialize(m)) = attribute(typeof(m))
-attribute(::Type{M}) where {M} = metadata
-attribute(T::Type{<:AbstractDict}) = properties
-attribute(@nospecialize T::Type{<:Base.Pairs}) = properties # avoid specializing on `pairs(::NamedTuple) 
-attribute(T::Type{Symbol}) = annotation
-attribute(T::Type{<:AbstractString}) = annotation
-attribute(@nospecialize T::Type{<:StaticSymbol}) = annotation
-
-_maybe_getattr(m::M, attr::A) where {M,A} = __maybe_getattr(is_attribute(M, attr), m)
-__maybe_getattr(::False, m) = no_metadata
-__maybe_getattr(::True, m) = m
-
-"""
-    getattr(x, attr, default)
-
-Returns the attribute of `x` corresponding to `attr`. If `x` doesn't have an attribute
-corresponding to `attr` then `default` is returned.
-"""
-@inline function getattr(x::X, attr::A, default) where {X,A}
-    _getattr(_maybe_getattr(metadata(x), attr), x, attr, default)
-end
-_getattr(m, x, attr, default) = m
-@inline function _getattr(::NoMetadata, x::X, attr::A, default) where {X,A}
-    __getattr(x, parent(x), attr, default)
-end
-@inline __getattr(::C, p::P, attr, default) where {C,P} = getattr(p, attr, default)
-__getattr(::X, ::X, attr, default) where {X} = default
 
 """
     metadata(x::AbstractArray; dim)
@@ -296,10 +201,10 @@ has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 Generic method for attaching metadata to `x`.
 """
-attach_metadata(x, m=Dict{Symbol,Any}()) = MetaStruct(x, m)
-attach_metadata(x::AbstractArray, m=Dict{Symbol,Any}()) = MetaArray(x, m)
-attach_metadata(x::AbstractUnitRange, m=Dict{Symbol,Any}()) = MetaUnitRange(x, m)
-attach_metadata(x::IO, m=Dict{Symbol,Any}()) = MetaIO(x, m)
+attach_metadata(x, m) = MetaStruct(x, m)
+attach_metadata(x::AbstractArray, m) = MetaArray(x, m)
+attach_metadata(x::AbstractUnitRange, m) = MetaUnitRange(x, m)
+attach_metadata(x::IO, m) = MetaIO(x, m)
 attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, m)
 
 ## macro utilities

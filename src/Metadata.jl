@@ -28,6 +28,9 @@ export
     metadata_type,
     share_metadata
 
+const BoolType = Union{Bool,StaticBool}
+const IntType = Union{Int,StaticInt}
+const SymbolType = Union{Symbol,StaticSymbol}
 const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,Any},<:NamedTuple}
 
 # default dict
