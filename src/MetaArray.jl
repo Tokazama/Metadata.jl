@@ -94,6 +94,8 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     end
 end
 
+Base.IndexStyle(::Type{T}) where {T<:MetaArray} = IndexStyle(parent_type(T))
+
 ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
 @inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
     if dim === nothing
@@ -103,65 +105,67 @@ ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
     end
 end
 
-@unwrap Base.axes(x::MetaArray)
+for f in [:axes, :size, :strides, :length, :eachindex, :firstindex, :lastindex, :first, :step,
+    :last, :dataids, :isreal, :iszero]
+    eval(:(Base.$(f)(@nospecialize(x::MetaArray)) = Base.$(f)(getfield(x, 1))))
+end
 
-@unwrap Base.size(x::MetaArray)
+for f in [:axes, :size, :stride]
+    eval(:(Base.$(f)(@nospecialize(x::MetaArray), dim) = Base.$f(getfield(x, 1), to_dims(x, dim))))
+    eval(:(Base.$(f)(@nospecialize(x::MetaArray), dim::Integer) = Base.$f(getfield(x, 1), dim)))
+end
 
-@unwrap Base.strides(x::MetaArray)
+# ArrayInterface traits that just need the parent type
+for f in [:can_change_size, :defines_strides, :known_size, :known_length, :axes_types,
+   :known_offsets, :known_strides, :contiguous_axis, :contiguous_axis_indicator,
+   :stride_rank, :contiguous_batch_size,:known_first, :known_last, :known_step]
+    eval(:(ArrayInterface.$(f)(T::Type{<:MetaArray}) = ArrayInterface.$(f)(parent_type(T))))
+end
 
-@unwrap Base.length(x::MetaArray)
+Base.pointer(x::MetaArray, n::Integer) = pointer(parent(x), n)
 
-@unwrap Base.eachindex(x::MetaArray)
-
-@unwrap Base.firstindex(x::MetaArray)
-
-@unwrap Base.lastindex(x::MetaArray)
-
-@unwrap Base.first(x::MetaArray)
-
-@unwrap Base.step(x::MetaArray)
-
-@unwrap Base.last(x::MetaArray)
-
-@unwrap Base.dataids(x::MetaArray)
-
-@unwrap Base.isreal(x::MetaArray)
-
-@unwrap Base.iszero(x::MetaArray)
-
-@unwrap ArrayInterface.axes(x::MetaArray)
-
-@unwrap ArrayInterface.strides(x::MetaArray)
-
-@unwrap ArrayInterface.offsets(x::MetaArray)
-
-@unwrap ArrayInterface.size(x::MetaArray)
+for f in [:axes, :size, :strides, :offsets]
+    eval(:(ArrayInterface.$(f)(x::MetaArray) = ArrayInterface.$f(getfield(x, :parent))))
+end
 
 Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
+
+Base.similar(x::MetaArray) = propagate_metadata(x, similar(parent(x)))
+Base.similar(x::MetaArray, ::Type{T}) where {T} = propagate_metadata(x, similar(parent(x), T))
 function Base.similar(x::MetaArray, ::Type{T}, dims::NTuple{N,Int}) where {T,N}
-    return Metadata.share_metadata(x, similar(parent(x), T, dims))
+    propagate_metadata(x, similar(parent(x), T, dims))
 end
-
-function Base.similar(
-    x::MetaArray,
-    ::Type{T},
-    dims::Tuple{Union{Integer,OneTo},Vararg{Union{Integer,OneTo}}}
-) where {T}
-
-    return Metadata.propagate_metadata(x, similar(parent(x), T, dims))
+function Base.similar(x::MetaArray, ::Type{T}, dims::Tuple{Union{Integer,OneTo},Vararg{Union{Integer,OneTo}}} ) where {T}
+    propagate_metadata(x, similar(parent(x), T, dims))
 end
 function Base.similar(x::MetaArray, ::Type{T}, dims::Tuple{Integer, Vararg{Integer}}) where {T}
-    return Metadata.propagate_metadata(x, similar(parent(x), T, dims))
+    propagate_metadata(x, similar(parent(x), T, dims))
 end
-
-function ArrayInterface.defines_strides(::Type{T}) where {T<:MetaArray}
-    return ArrayInterface.defines_strides(parent_type(T))
-end
-
 @propagate_inbounds function Base.getindex(A::MetaArray{T}, args...) where {T}
-    return _getindex(A, getindex(parent(A), args...))
+    _getindex(A, getindex(parent(A), args...))
 end
 
 _getindex(A::MetaArray{T}, val::T) where {T} = val
 _getindex(A::MetaArray{T}, val) where {T} = propagate_metadata(A, val)
+
+# mutating methods
+for f in [:push!, :pushfirst!, :prepend!, :append!, :sizehint!, :resize!]
+    @eval begin
+        function Base.$(f)(A::MetaArray, args...)
+            can_change_size(A) || throw(MethodError($(f), (A, item)))
+            Base.$(f)(getfield(A, :parent), args...)
+            return A
+        end
+    end
+end
+
+for f in [:empty!, :pop!, :popfirst!, :popat!, :insert!, :deleteat!]
+    @eval begin
+        function Base.$(f)(A::MetaArray, args...)
+            can_change_size(A) || throw(MethodError($f, (A,)))
+            $(f)(getfield(A, :parent), args...)
+            return A
+        end
+    end
+end
 

@@ -260,11 +260,11 @@ end
 
 macro defproperties(T)
     esc(quote
-        Base.parent(x::$T) = getfield(x, :parent)
+        Base.parent(@nospecialize(x::$T)) = getfield(x, 1)
 
-        @inline function Metadata.metadata(x::$T; dim=nothing, kwargs...)
+        @inline function Metadata.metadata(@nospecialize(x::$T); dim=nothing, kwargs...)
             if dim === nothing
-                return getfield(x, :metadata)
+                return getfield(x, 2)
             else
                 return metadata(parent(x); dim=dim)
             end
