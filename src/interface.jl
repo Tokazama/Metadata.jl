@@ -40,49 +40,14 @@ metadata_type(::Type{T}) where {T<:AbstractDict} = T
 metadata_type(::Type{T}) where {T<:NamedTuple} = T
 
 """
-    metadata(x, k)
+    has_metadata(x)::Bool
 
-Returns the value associated with key `k` of `x`'s metadata.
+Returns `true` if `x` has metadata.
 """
-function metadata(x, k)
-    out = getmeta(x, k, no_metadata)
-    out === no_metadata && throw(KeyError(k))
-    return out
-end
-
-"""
-    metadata(x::AbstractArray, k; dim)
-
-Returns the value associated with key `k` of `x`'s metadata.
-"""
-@inline function metadata(x::AbstractArray, k; dim=nothing)
-    if dim === nothing
-        if has_metadata(x)
-            return metadata(metadata(x), k)
-        else
-            return no_metadata
-        end
-    else
-        return metadata(metadata(x; dim=dim), k)
-    end
-end
-
-"""
-    metadata!(x::AbstractArray, k, val)
-
-Set the value associated with key `k` of `x`'s metadata to `val`.
-"""
-@inline metadata!(x, k, val) = metadata!(metadata(x), k, val)
-metadata!(x::AbstractDict, k, val) = setindex!(x, val, k)
-metadata!(m::AbstractDict{String}, k::Symbol, val) = setindex!(m, val, String(k))
-metadata!(m::AbstractDict{Symbol}, k::String, val) = setindex!(m, val, Symbol(k))
-
-"""
-    metadata!(x::AbstractArray, k, val; dim)
-
-Set the value associated with key `k` of the metadata at dimension `dim` of `x` to `val`.
-"""
-metadata!(x::AbstractArray, k, val; dim=nothing) = metadata!(metadata(x; dim=dim), k, val)
+has_metadata(x) = has_metadata(typeof(x))
+has_metadata(::Type{T}) where {T} = _has_metadata(metadata_type(T))
+_has_metadata(::Type{NoMetadata}) = false
+_has_metadata(::Type{T}) where {T} = true
 
 """
     metadata_type(::Type{<:AbstractArray}; dim)::Type
@@ -169,16 +134,6 @@ that `getmeta!` passes `x` to `f` as an argument (as opposed to `f()`).
     end
     return out
 end
-
-"""
-    has_metadata(x)::Bool
-
-Returns `true` if `x` has metadata.
-"""
-has_metadata(x) = has_metadata(typeof(x))
-has_metadata(::Type{T}) where {T} = _has_metadata(metadata_type(T))
-_has_metadata(::Type{NoMetadata}) = false
-_has_metadata(::Type{T}) where {T} = true
 
 """
     has_metadata(x::AbstractArray; dim)::Bool
@@ -287,7 +242,7 @@ macro defproperties(T)
             end
         end
 
-        Base.getproperty(x::$T, k::String) = Metadata.metadata(x, k)
+        Base.getproperty(x::$T, k::String) = getproperty(x, Symbol(k))
         @inline function Base.getproperty(x::$T, k::Symbol)
             if hasproperty(parent(x), k)
                 return getproperty(parent(x), k)
@@ -296,15 +251,14 @@ macro defproperties(T)
             end
         end
 
-        Base.setproperty!(x::$T, k::String, v) = Metadata.metadata!(x, k, v)
-        @inline function Base.setproperty!(x::$T, k::Symbol, val)
+        Base.setproperty!(x::$T, k::String, v) = setproperty!(x, Symbol(k), v)
+        @inline function Base.setproperty!(x::$T, k::Symbol, v)
             if hasproperty(parent(x), k)
-                return setproperty!(parent(x), k, val)
+                return setproperty!(parent(x), k, v)
             else
-                return Metadata.metadata!(x, k, val)
+                return Metadata.metadata!(x, k, v)
             end
         end
-
         @inline Base.propertynames(x::$T) = Metadata.metadata_keys(x)
     end)
 end

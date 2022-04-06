@@ -36,6 +36,7 @@ const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
 include("NoMetadata.jl")
 include("interface.jl")
+include("deprecations.jl")
 include("GlobalMetadata.jl")
 include("MetaStruct.jl")
 include("MetaDict.jl")
