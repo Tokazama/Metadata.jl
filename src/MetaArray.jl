@@ -132,7 +132,9 @@ for f in [:axes, :size, :strides, :offsets]
 end
 
 Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
+Base.map(f, A::MetaArray) = propagate_metadata(x, map(f, parent(A)), )
 
+# similar
 Base.similar(x::MetaArray) = propagate_metadata(x, similar(parent(x)))
 Base.similar(x::MetaArray, ::Type{T}) where {T} = propagate_metadata(x, similar(parent(x), T))
 function Base.similar(x::MetaArray, ::Type{T}, dims::NTuple{N,Int}) where {T,N}
@@ -144,12 +146,6 @@ end
 function Base.similar(x::MetaArray, ::Type{T}, dims::Tuple{Integer, Vararg{Integer}}) where {T}
     propagate_metadata(x, similar(parent(x), T, dims))
 end
-@propagate_inbounds function Base.getindex(A::MetaArray{T}, args...) where {T}
-    _getindex(A, getindex(parent(A), args...))
-end
-
-_getindex(A::MetaArray{T}, val::T) where {T} = val
-_getindex(A::MetaArray{T}, val) where {T} = propagate_metadata(A, val)
 
 # mutating methods
 for f in [:push!, :pushfirst!, :prepend!, :append!, :sizehint!, :resize!]
@@ -198,5 +194,120 @@ function Base.permutedims(x::MetaMatrix)
 end
 @inline function Base.permutedims(x::MetaArray{T,N}, perm::NTuple{N,Int}) where {T,N}
     attach_metadata(permutedims(parent(x), perm), permute_metadata(metadata(x), perm))
+end
+
+# Indexing
+# FIXME
+index_metadata(m, inds) = m
+for f in [:getindex, :view]
+    unsafe = Symbol(:unsafe_, f)
+    @eval begin
+        function Base.$(f)(A::MetaArray, args...)
+            inds = ArrayInterface.to_indices(A, args)
+            @boundscheck checkbounds(A, inds...)
+            $(unsafe)(A, inds)
+        end
+        function Base.$(f)(A::MetaArray; kwargs...)
+            inds = ArrayInterface.to_indices(A, ArrayInterface.find_all_dimnames(dimnames(A), static(keys(kwargs)), Tuple(values(kwargs)), :))
+            @boundscheck checkbounds(A, inds...)
+            $(unsafe)(A, inds)
+        end
+        @inline $(unsafe)(A, inds::Tuple{Vararg{Integer}}) = @inbounds($(f)(A, inds...))
+        @inline $(unsafe)(A::MetaArray, inds::Tuple{Vararg{Integer}}) = $(unsafe)(getfield(A, :parent), inds)
+        @inline $(unsafe)(A, inds::Tuple{Vararg{Any}}) = @inbounds($(f)(A, inds...))
+        @inline function $(unsafe)(A::MetaArray, inds::Tuple{Vararg{Any}})
+            attach_metadata($(unsafe)(getfield(A, :parent), inds), index_metadata(getfield(A, :metadata), inds))
+        end
+    end
+end
+function Base.setindex!(A::MetaArray, vals, args...)
+    inds = ArrayInterface.to_indices(A, args)
+    @boundscheck checkbounds(A, inds...)
+    unsafe_setindex!(getfield(A, :parent), vals, inds)
+end
+function Base.setindex!(A::MetaArray, vals; kwargs...)
+    inds = ArrayInterface.to_indices(A, ArrayInterface.find_all_dimnames(dimnames(A), static(keys(kwargs)), Tuple(values(kwargs)), :))
+    @boundscheck checkbounds(A, inds...)
+    unsafe_setindex!(getfield(A, :parent), vals, inds)
+end
+@inline unsafe_setindex!(A::MetaArray, vals, inds) = unsafe_setindex!(getfield(A, :parent), vals, inds)
+@inline unsafe_setindex!(A, vals, inds) = @inbounds setindex!(A, vals, inds...)
+
+# Reducing dimensions
+# FIXME reduction across all dimensions results in a single element
+reduce_metadata(m, ::Colon) = no_metadata
+for (mod, funs) in (
+    (:Base, (:sum, :prod, :maximum, :minimum, :extrema, :argmax, :argmin)),
+    (:Statistics, (:mean, :std, :var, :median)),
+)
+    for fun in funs
+        @eval function $mod.$fun(a::MetaArray; dims=:, kwargs...)
+            d = ArrayInterface.to_dims(a, dims)
+            attach_metadata(
+                $mod.$fun(parent(a); dims=d, kwargs...),
+                reduce_metadata(metadata(a), d)
+            )
+        end
+    end
+end
+
+function Base.mapreduce(f1, f2, a::MetaArray; dims=:, kwargs...)
+    d = ArrayInterface.to_dim(a, dims)
+    attach_metadata(
+        mapreduce(f1, f2, parent(a); dims=d, kwargs...),
+        reduce_metadata(metadata(a), d)
+    )
+end
+
+# 1 Arg, 2 Results
+for (mod, funs) in ((:Base, (:findmax, :findmin)),)
+    for fun in funs
+        @eval function $mod.$fun(a::MetaArray; dims=:, kwargs...)
+            d = ArrayInterface.to_dims(a, dims)
+            data, index = $mod.$fun(parent(a); dims=d, kwargs...)
+            return (attach_metadata(data, reduce_metadata(metadata(d), d)), index)
+        end
+    end
+end
+
+# Reshape
+reshape_metadata(m, dims) = MetadataInterface.no_metadata
+
+function _reshape(x::MetaArray, dims)
+    attach_metadata(reshape(parent(x), dims), reshape_metadata(metadata(x), dims))
+end
+Base.reshape(x::MetaVector, dims::Int...) = _reshape(x, dims)
+Base.reshape(x::MetaVector, dims::Colon) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Int64...) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Union{Int64, AbstractUnitRange}...) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Union{Colon, Int64}...) = _reshape(x, dims)
+Base.reshape(x::MetaArray{T,N}, ndims::Val{N}) where {T, N} = _reshape(x, dims)
+Base.reshape(x::MetaArray, ndims::Val{N}) where N = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Tuple{Vararg{Int64, N}} where N) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Tuple{Vararg{Union{Colon, Int64}}}) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Tuple{Union{Integer, Base.OneTo}, Vararg{Union{Integer, Base.OneTo}}}) = _reshape(x, dims)
+
+# Accumulators
+function Base.accumulate(op, A::MetaArray; dims=nothing, kw...)
+    if dims === nothing
+        return propagate_metadata(A, accumulate(op, parent(A); dims=dims, kw...))
+    else
+        return propagate_metadata(A, accumulate(op, parent(A); dims=to_dims(A, dims), kw...))
+    end
+end
+
+# 1 Arg - no default for `dims` keyword
+for (mod, funs) in ((:Base, (:cumsum, :cumprod, :sort, :sortslices)),)
+    for fun in funs
+        @eval function $mod.$fun(a::MetaArray; dims, kwargs...)
+            d = ArrayInterface.to_dims(a, dims)
+            propagate_metadata(a, $mod.$fun(parent(a); dims=d, kwargs...))
+        end
+
+        # Vector case
+        @eval function $mod.$fun(a::MetaArray{T,1}; kwargs...) where {T}
+            propagate_metadata(a, $mod.$fun(parent(a); kwargs...))
+        end
+    end
 end
 

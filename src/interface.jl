@@ -93,6 +93,19 @@ _metadata_type(::Type{P}, ::Type{T}) where {P,T} = metadata_type(P)
 _metadata_dim_type(::Type{T}, dim) where {T} = metadata_type(axes_types(T, dim))
 
 """
+    stripmeta(x) -> (data, metadata)
+
+Returns the the data and metadata immediately bound to `x`.
+"""
+@inline function stripmeta(x)
+    if metadata_type(x) <: NoMetadata
+        return (x, no_metadata)
+    else
+        return (parent(x), metadata(x))
+    end
+end
+
+"""
     getmeta(x, key, default)
 
 Return the metadata associated with `key`, or return `default` if `key` is not found.
@@ -200,7 +213,13 @@ has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 Generic method for attaching metadata to `x`.
 """
-attach_metadata(x, m=Dict{Symbol,Any}()) = MetaStruct(x, m)
+function attach_metadata(x, m=Dict{Symbol,Any}())
+    if m === no_metadata
+        return x
+    else
+        return MetaStruct(x, m)
+    end
+end
 attach_metadata(x::AbstractArray, m=Dict{Symbol,Any}()) = MetaArray(x, m)
 attach_metadata(x::AbstractUnitRange, m=Dict{Symbol,Any}()) = MetaUnitRange(x, m)
 attach_metadata(x::IO, m=Dict{Symbol,Any}()) = MetaIO(x, m)
@@ -260,7 +279,9 @@ end
 
 macro defproperties(T)
     esc(quote
-        Base.parent(@nospecialize(x::$T)) = getfield(x, 1)
+        Base.parent(@nospecialize x::$T) = getfield(x, 1)
+
+        Metadata.stripmeta(@nospecialize x::$T) = (getfield(x, 1), getfield(x, 2))
 
         @inline function Metadata.metadata(@nospecialize(x::$T); dim=nothing, kwargs...)
             if dim === nothing
