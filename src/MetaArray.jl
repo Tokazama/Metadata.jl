@@ -94,6 +94,9 @@ struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, 
     end
 end
 
+const MetaVector{T,M,A} = MetaArray{T,1,M,A}
+const MetaMatrix{T,M,A} = MetaArray{T,2,M,A}
+
 Base.IndexStyle(::Type{T}) where {T<:MetaArray} = IndexStyle(parent_type(T))
 
 ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
@@ -167,5 +170,33 @@ for f in [:empty!, :pop!, :popfirst!, :popat!, :insert!, :deleteat!]
             return A
         end
     end
+end
+
+# permuting dimensions
+
+# FIXME currently this doesn't do anything but it should be aware of metadata tied to dimensions
+permute_metadata(m) = m
+permute_metadata(m, perm) = m
+
+function LinearAlgebra.transpose(x::MetaVector)
+    attach_metadata(transpose(parent(x)), permute_metadata(metadata(x)))
+end
+function Base.adjoint(x::MetaVector)
+    attach_metadata(adjoint(parent(x)), permute_metadata(metadata(x)))
+end
+function Base.permutedims(x::MetaVector)
+    attach_metadata(permutedims(parent(x)), permute_metadata(metadata(x)))
+end
+function LinearAlgebra.transpose(x::MetaMatrix)
+    attach_metadata(transpose(parent(x)), permute_metadata(metadata(x)))
+end
+function Base.adjoint(x::MetaMatrix)
+    attach_metadata(adjoint(parent(x)), permute_metadata(metadata(x)))
+end
+function Base.permutedims(x::MetaMatrix)
+    attach_metadata(permutedims(parent(x)), permute_metadata(metadata(x)))
+end
+@inline function Base.permutedims(x::MetaArray{T,N}, perm::NTuple{N,Int}) where {T,N}
+    attach_metadata(permutedims(parent(x), perm), permute_metadata(metadata(x), perm))
 end
 

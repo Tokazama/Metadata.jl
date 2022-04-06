@@ -68,8 +68,10 @@ end
     @test @inferred(parent_type(mxview)) <: typeof(xview)
     @test @inferred(typeof(mx)(xview, meta)) isa typeof(mx)
     @test mxview.indices === xview.indices
-
     @test ArrayInterface.defines_strides(typeof(mx))
+
+    # permutedims
+    @test metadata(mx') == metadata(permutedims(mx))
 
     @test isempty(metadata(Metadata.MetaArray(ones(2,2))))
 
