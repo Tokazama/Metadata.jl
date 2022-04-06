@@ -99,15 +99,6 @@ const MetaMatrix{T,M,A} = MetaArray{T,2,M,A}
 
 Base.IndexStyle(::Type{T}) where {T<:MetaArray} = IndexStyle(parent_type(T))
 
-ArrayInterface.parent_type(::Type{MetaArray{T,M,N,A}}) where {T,M,N,A} = A
-@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(A; dim=dim)
-    end
-end
-
 for f in [:axes, :size, :strides, :length, :eachindex, :firstindex, :lastindex, :first, :step,
     :last, :dataids, :isreal, :iszero]
     eval(:(Base.$(f)(@nospecialize(x::MetaArray)) = Base.$(f)(getfield(x, 1))))
@@ -276,16 +267,19 @@ reshape_metadata(m, dims) = MetadataInterface.no_metadata
 function _reshape(x::MetaArray, dims)
     attach_metadata(reshape(parent(x), dims), reshape_metadata(metadata(x), dims))
 end
-Base.reshape(x::MetaVector, dims::Int...) = _reshape(x, dims)
-Base.reshape(x::MetaVector, dims::Colon) = _reshape(x, dims)
-Base.reshape(x::MetaArray, dims::Int64...) = _reshape(x, dims)
-Base.reshape(x::MetaArray, dims::Union{Int64, AbstractUnitRange}...) = _reshape(x, dims)
-Base.reshape(x::MetaArray, dims::Union{Colon, Int64}...) = _reshape(x, dims)
+Base.reshape(x::MetaVector, dim::Colon) = _reshape(x, dims)
 Base.reshape(x::MetaArray{T,N}, ndims::Val{N}) where {T, N} = _reshape(x, dims)
-Base.reshape(x::MetaArray, ndims::Val{N}) where N = _reshape(x, dims)
-Base.reshape(x::MetaArray, dims::Tuple{Vararg{Int64, N}} where N) = _reshape(x, dims)
-Base.reshape(x::MetaArray, dims::Tuple{Vararg{Union{Colon, Int64}}}) = _reshape(x, dims)
+
+#=
+Base.reshape(x::MetaArray, dims::Int...) = _reshape(x, dims)
 Base.reshape(x::MetaArray, dims::Tuple{Union{Integer, Base.OneTo}, Vararg{Union{Integer, Base.OneTo}}}) = _reshape(x, dims)
+Base.reshape(x::MetaVector, dims::Colon) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Union{Int, AbstractUnitRange}...) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Union{Colon, Int}...) = _reshape(x, dims)
+Base.reshape(x::MetaArray, ndims::Val{N}) where N = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Tuple{Vararg{Union{Colon, Int}}}) = _reshape(x, dims)
+Base.reshape(x::MetaArray, dims::Tuple{Vararg{Colon}}) = _reshape(x, dims)
+=#
 
 # Accumulators
 function Base.accumulate(op, A::MetaArray; dims=nothing, kw...)

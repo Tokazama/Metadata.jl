@@ -38,11 +38,38 @@ include("NoMetadata.jl")
 include("interface.jl")
 include("GlobalMetadata.jl")
 include("MetaStruct.jl")
+include("MetaDict.jl")
+include("MetaTuple.jl")
 include("MetaIO.jl")
 include("MetaUnitRange.jl")
 include("MetaArray.jl")
 include("propagation.jl")
 include("show.jl")
+
+ArrayInterface.parent_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[4]
+ArrayInterface.parent_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[3]
+ArrayInterface.parent_type(@nospecialize T::Type{<:MetaUnitRange}) = T.parameters[2]
+ArrayInterface.parent_type(@nospecialize T::Type{<:MetaTuple}) = T.parameters[2]
+ArrayInterface.parent_type(@nospecialize T::Type{<:MetaIO}) = T.parameters[1]
+@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
+    if dim === nothing
+        return M
+    else
+        return metadata_type(A; dim=dim)
+    end
+end
+
+metadata_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[3]
+metadata_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[4]
+metadata_type(@nospecialize T::Type{<:MetaTuple}) = T.parameters[3]
+metadata_type(@nospecialize T::Type{<:MetaUnitRange}) = T.parameters[3]
+metadata_type(@nospecialize T::Type{<:MetaIO}) = T.parameters[2]
+
+attach_metadata(@nospecialize(x::AbstractArray), m=Dict{Symbol,Any}()) = MetaArray(x, m)
+attach_metadata(@nospecialize(x::AbstractUnitRange), m=Dict{Symbol,Any}()) = MetaUnitRange(x, m)
+attach_metadata(@nospecialize(x::IO), m=Dict{Symbol,Any}()) = MetaIO(x, m)
+attach_metadata(@nospecialize(x::Tuple), m=Dict{Symbol,Any}()) = _MetaTuple(x, m)
+attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, m)
 
 @defproperties MetaArray
 
@@ -51,6 +78,10 @@ include("show.jl")
 @defproperties MetaStruct
 
 @defproperties MetaIO
+
+@defproperties MetaTuple
+
+@defproperties MetaDict
 
 """
     test_wrapper(::Type{WrapperType}, x::X)

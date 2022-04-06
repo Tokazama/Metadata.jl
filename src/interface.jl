@@ -30,6 +30,16 @@ _metadata_dim(x::CartesianIndices, dim::Int) = metadata(getfield(x.indices, dim)
 _metadata_dim(x::CartesianIndices, dim::StaticInt{D}) where {D} = metadata(getfield(x.indices, D))
 
 """
+    metadata_type(::Type{T})
+
+Returns the type of the metadata associated with `x`.
+"""
+metadata_type(x) = metadata_type(typeof(x))
+metadata_type(::Type{T}) where {T} = _metadata_type(parent_type(T), T)
+metadata_type(::Type{T}) where {T<:AbstractDict} = T
+metadata_type(::Type{T}) where {T<:NamedTuple} = T
+
+"""
     metadata(x, k)
 
 Returns the value associated with key `k` of `x`'s metadata.
@@ -161,16 +171,6 @@ that `getmeta!` passes `x` to `f` as an argument (as opposed to `f()`).
 end
 
 """
-    metadata_type(::Type{T})
-
-Returns the type of the metadata associated with `x`.
-"""
-metadata_type(x) = metadata_type(typeof(x))
-metadata_type(::Type{T}) where {T} = _metadata_type(parent_type(T), T)
-metadata_type(::Type{T}) where {T<:AbstractDict} = T
-metadata_type(::Type{T}) where {T<:NamedTuple} = T
-
-"""
     has_metadata(x)::Bool
 
 Returns `true` if `x` has metadata.
@@ -220,10 +220,6 @@ function attach_metadata(x, m=Dict{Symbol,Any}())
         return MetaStruct(x, m)
     end
 end
-attach_metadata(x::AbstractArray, m=Dict{Symbol,Any}()) = MetaArray(x, m)
-attach_metadata(x::AbstractUnitRange, m=Dict{Symbol,Any}()) = MetaUnitRange(x, m)
-attach_metadata(x::IO, m=Dict{Symbol,Any}()) = MetaIO(x, m)
-attach_metadata(m::METADATA_TYPES) = Base.Fix2(attach_metadata, m)
 
 ## macro utilities
 argexpr(e::Symbol) = e

@@ -42,9 +42,9 @@ ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
     end
 end
 
-@unwrap Base.first(x::MetaUnitRange)
-@unwrap Base.last(x::MetaUnitRange)
-@unwrap Base.length(x::MetaUnitRange)
+for f in [:first, :last, :length]
+    eval(:(Base.$(f)(@nospecialize(x::MetaUnitRange)) = Base.$(f)(getfield(x, 1))))
+end
 
 Base.@propagate_inbounds Base.getindex(r::MetaUnitRange, i::Integer) = parent(r)[i]
 

@@ -9,8 +9,6 @@ struct MetaIO{T<:IO,M} <: IO
     metadata::M
 end
 
-ArrayInterface.parent_type(::Type{T}) where {IOType,T<:MetaIO{IOType}} = IOType
-
 @unwrap Base.isreadonly(x::MetaIO)
 @unwrap Base.isreadable(x::MetaIO)
 @unwrap Base.iswritable(x::MetaIO)
