@@ -164,17 +164,39 @@ Returns `true` if metadata associated with dimension `dim` of `x` has the key `k
 has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 """
-    attach_metadata(x, metadata)
+    attach_metadata(x, m)
 
-Generic method for attaching metadata to `x`.
+Generic method for attaching metadata `m` to data `x`. This method acts as an intermediate
+step where compatability between `x` and `m` is checked using `checkmeta`.
+`unsafe_attach_metadata` is subsequently used to quickly bind the two without and further checks.
+
+See also: [`unsafe_attach_metadata`](@ref), [`checkmeta`](@ref)
 """
-function attach_metadata(x, m=Dict{Symbol,Any}())
-    if m === no_metadata
-        return x
-    else
-        return MetaStruct(x, m)
-    end
+function attach_metadata(x, m)
+    checkmeta(x, m)
+    unsafe_attach_metadata(x, m)
 end
+attach_metadata(x, ::NoMetadata) = x
+attach_metadata(m) = Base.Fix2(attach_metadata, m)
+
+"""
+    checkmeta([Type{Bool}], x, m)
+
+Checks if the metadata `m` is compatible with `x`. If `Bool` is not included then an error
+is throw on failure.
+"""
+checkmeta(x, m) = checkmeta(Bool, x, m) || throw(ArgumentError("data $x and metadata $m are incompatible."))
+checkmeta(::Type{Bool}, x, m) = true
+
+"""
+    unsafe_attach_metadata(x, m)
+
+Attaches metadata `m` to `x` without checking for compatability. New types for wrapping
+binding metadata to `x` should usually  define a unique `unsafe_attach_metadata` method.
+
+See also [`attach_metadata`](@ref)
+"""
+unsafe_attach_metadata
 
 ## macro utilities
 argexpr(e::Symbol) = e

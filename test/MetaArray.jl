@@ -14,9 +14,7 @@ mxview = attach_metadata(meta)(xview)
 
 @test isempty(metadata(Metadata.MetaArray(ones(2,2))))
 
-mx = attach_metadata(x)
-mvx = typeof(mx)(xview; m1 = 1, m2 = [1, 2])
-@test mvx isa typeof(mx)
+mvx = attach_metadata(xview, (m1 = 1, m2 = [1, 2]))
 @test mvx.m1 == 1
 @test mvx.m2 == [1, 2]
 

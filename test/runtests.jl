@@ -36,6 +36,7 @@ Aqua.test_all(Metadata)
     @test iterate(m, state) === nothing
 end
 
+#=
 @testset "MetaStruct" begin
     x = Metadata.MetaStruct(2, (m1 =1, m2=[1, 2]))
     m = (m1 =1, m2=[1, 2])
@@ -57,6 +58,7 @@ end
     x.field = 2
     @test getproperty(x, :field) == 2
 end
+=#
 
 @testset "MetaTuple" begin
     include("MetaTuple.jl")

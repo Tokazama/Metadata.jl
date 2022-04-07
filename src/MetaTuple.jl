@@ -64,10 +64,6 @@ function Base.get(f::Union{Type,Function}, t::MetaTuple, i::Integer)
     end
 end
 
-## iterating ##
-#Base.keys(@nospecialize t::MetaTuple) = 
-## find ##
-
 Base.findfirst(f::Function, @nospecialize(t::MetaTuple)) = findfirst(f, parent(t))
 
 Base.findlast(f::Function, @nospecialize(t::MetaTuple)) = findlast(f, parent(t))
@@ -85,3 +81,4 @@ Base.hash(t::MetaTuple, h::UInt) = hash(parent(t), h)
 # a version of `in` esp. for NamedTuple, to make it pure, and not compiled for each tuple length
 #foreach(f, itr::Tuple) = foldl((_, x) -> (f(x); nothing), itr, init=nothing)
 #foreach(f, itrs::Tuple...) = foldl((_, xs) -> (f(xs...); nothing), zip(itrs...), init=nothing)
+
