@@ -3,17 +3,19 @@ struct MetaDict{K, V, P <: AbstractDict{K, V},M} <: AbstractDict{K, V}
     parent::P
     metadata::M
 
-    MetaDict(p::P, m::M) where {K,V,P<:AbstractDict{K,V},M} = new{K,V,P,M}(p, m)
+    global function _MetaDict(@nospecialize(p), @nospecialize(m))
+        new{keytype(p),valtype(p),typeof(p),typeof(m)}(p, m)
+    end
 end
 
-function Base.sizehint!(d::MetaDict, n::Integer)
+function Base.sizehint!(@nospecialize(d::MetaDict), n::Integer)
     sizehint!(parent(d), n)
     return d
 end
 
-Base.push!(d::MetaDict, p::Pair) = push!(parent(d), p)
-Base.pop!(d::MetaDict, args...) = pop!(parent(d), args...)
-function Base.empty!(d::MetaDict)
+Base.push!(@nospecialize(d::MetaDict), p::Pair) = push!(parent(d), p)
+Base.pop!(@nospecialize(d::MetaDict), args...) = pop!(parent(d), args...)
+function Base.empty!(@nospecialize(d::MetaDict))
     empty!(parent(d))
     return d
 end
@@ -22,7 +24,7 @@ function Base.delete!(@nospecialize(d::MetaDict), key)
     return d
 end
 
-function ArrayInterface.can_setindex(T::Type{<:MetaDict})
+function ArrayInterface.can_setindex(@nospecialize T::Type{<:MetaDict})
     ArrayInterface.can_setindex(parent_type(T))
 end
 

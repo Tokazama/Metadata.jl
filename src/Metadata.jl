@@ -62,10 +62,10 @@ metadata_type(@nospecialize T::Type{<:MetaStruct}) = T.parameters[2]
 unsafe_attach_metadata(x, m) = MetaStruct(x, m)
 unsafe_attach_metadata(@nospecialize(x::AbstractArray), m) = _MetaArray(x, m)
 unsafe_attach_metadata(@nospecialize(x::Union{Tuple,MetaTuple}), m) = _MetaTuple(x, m)
-unsafe_attach_metadata(@nospecialize(x::AbstractUnitRange), m) = MetaUnitRange(x, m)
+unsafe_attach_metadata(@nospecialize(x::AbstractUnitRange), m) = _MetaUnitRange(x, m)
 unsafe_attach_metadata(@nospecialize(x::IO), m) = MetaIO(x, m)
-unsafe_attach_metadata(@nospecialize(x::AbstractDict), m) = MetaDict(x, m)
-unsafe_attach_metadata(@nospecialize(x::NamedTuple), m) = MetaDict(pairs(x), m)
+unsafe_attach_metadata(@nospecialize(x::AbstractDict), m) = _MetaDict(x, m)
+unsafe_attach_metadata(@nospecialize(x::NamedTuple), m) = _MetaDict(pairs(x), m)
 
 @defproperties MetaArray
 

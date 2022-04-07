@@ -13,6 +13,5 @@ mx = Metadata.test_wrapper(Metadata.MetaUnitRange, x)
 @test ArrayInterface.known_step(mx) === ArrayInterface.known_step(x)
 @test mx[1:2:10] == x[1:2:10]
 @test mx[:] == x[:]
-@test eltype(Metadata.MetaUnitRange{UInt}(1:10, nothing)) <: UInt
 Metadata.test_wrapper(Metadata.MetaUnitRange, 1:10)
 

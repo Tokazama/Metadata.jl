@@ -5,7 +5,9 @@
 Creates summary readout of metadata for `x`.
 """
 metadata_summary(x) = metadata_summary(stdout, x)
-function metadata_summary(io::IO, x)
+metadata_summary(io::IO, x) = print(io, x)
+metadata_summary(io::IO, @nospecialize(x::NamedTuple)) = metadata_summary(io, pairs(x))
+function metadata_summary(io::IO, @nospecialize(x::AbstractDict))
     print(io, "$(lpad(Char(0x2022), 3)) metadata:")
     suppress = get(x, :suppress, no_metadata)
     if suppress !== no_metadata
@@ -38,10 +40,8 @@ end
 # may want to overload this.
 #
 # - used within Base.showarg for MetaArray
-showarg_metadata(x) = "::$(metadata_type(x))"
 
-
-function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(X::MetaArray))
     summary(io, X)
     isempty(X) && return
     Base.show_circular(io, X) && return
@@ -65,30 +65,30 @@ function Base.show(io::IO, ::MIME"text/plain", X::MetaArray)
     Base.print_array(recur_io, parent(X))
 end
 
-Base.summary(io::IO, x::MetaArray) = Base.showarg(io, x, true)
-function Base.showarg(io::IO, x::MetaArray, toplevel)
+Base.summary(io::IO, @nospecialize(x::MetaArray)) = Base.showarg(io, x, true)
+function Base.showarg(io::IO, @nospecialize(x::MetaArray), toplevel)
     if toplevel
         print(io, Base.dims2string(length.(axes(x))), " ")
     end
     print(io, "attach_metadata(")
     Base.showarg(io, parent(x), false)
-    print(io, ", ", showarg_metadata(x))
+    print(io, ", ", "::$(metadata_type(x))")
     println(io)
     metadata_summary(io, metadata(x))
     print(io, "\n)")
 end
-function Base.show(io::IO, m::MIME"text/plain", x::MetaUnitRange)
+function Base.show(io::IO, m::MIME"text/plain", @nospecialize(x::MetaUnitRange))
     if haskey(io, :compact)
         show(io, parent(x))
     else
         print(io, "attach_metadata(")
         print(io, parent(x))
-        print(io, ", ", Metadata.showarg_metadata(x), ")\n")
+        print(io, ", ", "::$(metadata_type(x))", ")\n")
         Metadata.metadata_summary(io, metadata(x))
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(x::MetaStruct))
     print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
     Metadata.metadata_summary(io, metadata(x))
 end

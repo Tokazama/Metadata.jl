@@ -2,35 +2,15 @@
 """
     MetaUnitRange(x::AbstractUnitRange, meta)
 
-Type for storing metadata alongside a anything that is subtype of `AbstractUnitRange`.
-
-## Examples
-
-```jldoctest
-julia> using Metadata
-
-julia> Metadata.MetaUnitRange(1:2, (m1 =1, m2=[1, 2]))
-attach_metadata(1:2, ::NamedTuple{(:m1, :m2), Tuple{Int64, Vector{Int64}}})
-  • metadata:
-     m1 = 1
-     m2 = [1, 2]
-
-```
+Type for storing metadata alongside anything that is subtype of `AbstractUnitRange`. It is
+not intended that this be constructed directly. `attach_metadata(::AbstractUnitRange, meta)`
+should be used instead.
 """
 struct MetaUnitRange{T,P<:AbstractUnitRange{T},M} <: AbstractUnitRange{T}
     parent::P
     metadata::M
 
-    MetaUnitRange{T,P,M}(p::P, m::M) where {T,P,M} = new{T,P,M}(p, m)
-    function MetaUnitRange{T}(p::AbstractRange, m) where {T}
-        if eltype(p) <: T
-            return MetaUnitRange{T,typeof(p),typeof(m)}(p, m)
-        else
-            return MetaUnitRange{T}(AbstractUnitRange{T}(p), m)
-        end
-    end
-
-    MetaUnitRange(p::AbstractRange, m) = MetaUnitRange{eltype(p)}(p, m)
+    global _MetaUnitRange(@nospecialize(p), @nospecialize(m)) = new{eltype(p),typeof(p),typeof(m)}(p, m)
 end
 
 for f in [:first, :last, :length]
@@ -46,10 +26,10 @@ ArrayInterface.known_last(::Type{T}) where {T<:MetaUnitRange} = known_last(paren
 @propagate_inbounds Base.getindex(r::MetaUnitRange, i) = propagate_metadata(r, parent(r)[i])
 
 @propagate_inbounds function Base.getindex(r::MetaUnitRange, s::StepRange{T}) where T<:Integer
-    return propagate_metadata(r, getindex(parent(r), s))
+    propagate_metadata(r, getindex(parent(r), s))
 end
 @propagate_inbounds function Base.getindex(r::MetaUnitRange, s::AbstractUnitRange{T}) where {T<:Integer}
-    return propagate_metadata(r, getindex(parent(r), s))
+    propagate_metadata(r, getindex(parent(r), s))
 end
 
 Base.getindex(r::MetaUnitRange, ::Colon) = copy(r)
