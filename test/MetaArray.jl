@@ -5,22 +5,16 @@ mx = attach_metadata(meta)(x);
 mxview = attach_metadata(meta)(xview)
 @test @inferred(parent_type(mx)) <: typeof(x)
 @test @inferred(parent_type(mxview)) <: typeof(xview)
-@test @inferred(typeof(mx)(xview, meta)) isa typeof(mx)
+#@test @inferred(typeof(mx)(xview, meta)) isa typeof(mx)
 @test mxview.indices === xview.indices
 @test ArrayInterface.defines_strides(typeof(mx))
 
 # permutedims
 @test metadata(mx') == metadata(permutedims(mx))
 
-@test isempty(metadata(Metadata.MetaArray(ones(2,2))))
-
 mvx = attach_metadata(xview, (m1 = 1, m2 = [1, 2]))
 @test mvx.m1 == 1
 @test mvx.m2 == [1, 2]
-
-m = Metadata.MetaArray{Int}(undef, (2,2))
-m[:] = 1:4
-@test m == [1 3; 2 4]
 
 x = ones(4, 4);
 meta = (m1 =1, m2=[1, 2]);
@@ -69,6 +63,7 @@ mx = attach_metadata(x, meta);
 mx.m1 = 2
 @test mx.m1 == 2
 
+#=
 @testset "constructors" begin
     m = Dict{Symbol,Int}(:x=>1,:y=>2)
     x = @inferred(Metadata.MetaArray{Int,2,Dict{Symbol,Any},Array{Int,2}}(undef, (2,2), metadata=m))
@@ -86,4 +81,5 @@ mx.m1 = 2
     @test metadata(copy(x)) == metadata(x)
     @test metadata(copy(x)) !== metadata(x)
 end
+=#
 

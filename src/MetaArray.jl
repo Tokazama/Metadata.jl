@@ -1,98 +1,22 @@
 
-function _construct_meta(meta::AbstractDict{Symbol}, kwargs::NamedTuple)
-    for (k, v) in pairs(kwargs)
-        meta[k] = v
-    end
-    return meta
-end
-
-function _construct_meta(meta, kwargs::NamedTuple)
-    if isempty(kwargs)
-        return meta
-    else
-        error("Cannot assign key word arguments to metadata of type $(typeof(meta))")
-    end
-end
-
-"""
-    MetaArray(parent::AbstractArray, metadata)
-
-Custom `AbstractArray` object to store an `AbstractArray` `parent` as well as
-some `metadata`.
-
-## Examples
-
-```jldoctest
-julia> using Metadata
-
-julia> Metadata.MetaArray(ones(2,2), metadata=(m1 =1, m2=[1, 2]))
-2×2 attach_metadata(::Matrix{Float64}, ::NamedTuple{(:m1, :m2), Tuple{Int64, Vector{Int64}}}
-  • metadata:
-     m1 = 1
-     m2 = [1, 2]
-)
- 1.0  1.0
- 1.0  1.0
-
-```
-"""
-struct MetaArray{T, N, M, A<:AbstractArray} <: ArrayInterface.AbstractArray2{T, N}
+struct MetaArray{T,N,A<:AbstractArray{T,N},M} <: AbstractArray{T, N}
     parent::A
     metadata::M
 
-    MetaArray{T,N,M,A}(a::A, m::M) where {T,N,M,A} = new{T,N,M,A}(a, m)
-    MetaArray{T,N,M,A}(a::A, m) where {T,N,M,A} = new{T,N,M,A}(a, M(m))
-    MetaArray{T,N,M,A}(a, m::M) where {T,N,M,A} = MetaArray{T,N,M,A}(A(a), m)
-    MetaArray{T,N,M,A}(a, m) where {T,N,M,A} = MetaArray{T,N,M,A}(A(a), M(m))
-    function MetaArray{T,N,M,A}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N,M,A}
-        return MetaArray{T,N,M,A}(a, _construct_meta(metadata, values(kwargs)))
-    end
+    global _MetaArray(p::P, m::M) where {P,M} = new{eltype(P),ndims(P),P,M}(p, m)
 
-    function MetaArray{T,N,M,A}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N,M,A}
-        return MetaArray{T,N,M,A}(A(args...); metadata=metadata, kwargs...)
-    end
+    MetaArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
+    MetaArray{T,N}(x::MetaArray) where {T,N} = AbstractArray{T,N}(x)
 
-    ###
-    ### MetaArray{T,N,M}
-    ###
-    function MetaArray{T,N,M}(x::AbstractArray, m::M) where {T,N,M}
-        if eltype(x) <: T
-            return MetaArray{T,N,M,typeof(x)}(x, m)
-        else
-            return MetaArray{T,N,M}(convert(AbstractArray{T}, x), m)
-        end
-    end
-
-    ###
-    ### MetArray{T,N}
-    ###
-    MetaArray{T,N}(a::AbstractArray, m::M) where {T,N,M} = MetaArray{T,N,M}(a, m)
-    function MetaArray{T,N}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N}
-        return MetaArray{T,N}(a, _construct_meta(metadata, values(kwargs)))
-    end
-    function MetaArray{T,N}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T,N}
-        return MetaArray{T,N}(Array{T,N}(args...); metadata=metadata, kwargs...)
-    end
-
-    ###
-    ### MetArray{T}
-    ###
-    function MetaArray{T}(args...; metadata=Dict{Symbol,Any}(), kwargs...) where {T}
-        return MetaArray{T}(Array{T}(args...); metadata=metadata, kwargs...)
-    end
-    MetaArray{T}(a::AbstractArray, m::M) where {T,M} = MetaArray{T,ndims(a)}(a, m)
-    function MetaArray{T}(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...) where {T}
-        return MetaArray{T,ndims(a)}(a; metadata=metadata, kwargs...)
-    end
-
-    ###
-    ### MetaArray
-    ###
-    MetaArray(v::AbstractArray{T,N}, m::M) where {T,N,M} = new{T,N,M,typeof(v)}(v, m)
-    function MetaArray(a::AbstractArray; metadata=Dict{Symbol,Any}(), kwargs...)
-        return MetaArray{eltype(a)}(a; metadata=metadata, kwargs...)
-    end
+    MetaArray{T}(x::MetaArray{T}) where {T} = x
+    MetaArray{T}(x::MetaArray) where {T} = AbstractArray{T}(x)
+    MetaArray(x::MetaArray) = x
 end
+
+Base.AbstractArray{T}(x::MetaArray{T}) where {T} = x
+Base.AbstractArray{T}(x::MetaArray) where {T} = _MetaArray(AbstractArray{T}(parent(x)), metadata(x))
+Base.AbstractArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
+Base.AbstractArray{T,N}(x::MetaArray) where {T,N} = _MetaArray(AbstractArray{T,N}(parent(x)), metadata(x))
 
 const MetaVector{T,M,A} = MetaArray{T,1,M,A}
 const MetaMatrix{T,M,A} = MetaArray{T,2,M,A}
@@ -232,22 +156,16 @@ for (mod, funs) in (
     (:Statistics, (:mean, :std, :var, :median)),
 )
     for fun in funs
-        @eval function $mod.$fun(a::MetaArray; dims=:, kwargs...)
+        @eval function $mod.$fun(@nospecialize(a::MetaArray); dims=:, kwargs...)
             d = ArrayInterface.to_dims(a, dims)
-            attach_metadata(
-                $mod.$fun(parent(a); dims=d, kwargs...),
-                reduce_metadata(metadata(a), d)
-            )
+            attach_metadata($mod.$fun(parent(a); dims=d, kwargs...), reduce_metadata(metadata(a), d))
         end
     end
 end
 
 function Base.mapreduce(f1, f2, @nospecialize(a::MetaArray); dims=:, kwargs...)
     d = ArrayInterface.to_dim(a, dims)
-    attach_metadata(
-        mapreduce(f1, f2, parent(a); dims=d, kwargs...),
-        reduce_metadata(metadata(a), d)
-    )
+    attach_metadata(mapreduce(f1, f2, parent(a); dims=d, kwargs...), reduce_metadata(metadata(a), d))
 end
 
 # 1 Arg, 2 Results

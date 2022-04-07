@@ -79,4 +79,3 @@ function MetadataPropagation(::Type{T}) where {P,M,T<:MetaStruct{P,M}}
     end
 end
 
-

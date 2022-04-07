@@ -45,23 +45,22 @@ include("MetaArray.jl")
 include("propagation.jl")
 include("show.jl")
 
-ArrayInterface.parent_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[4]
+ArrayInterface.parent_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[3]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[3]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaUnitRange}) = T.parameters[2]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaTuple}) = T.parameters[2]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaIO}) = T.parameters[1]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaStruct}) = T.parameters[1]
 
-metadata_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[3]
+metadata_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[4]
 metadata_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[4]
 metadata_type(@nospecialize T::Type{<:MetaTuple}) = T.parameters[3]
 metadata_type(@nospecialize T::Type{<:MetaUnitRange}) = T.parameters[3]
 metadata_type(@nospecialize T::Type{<:MetaIO}) = T.parameters[2]
 metadata_type(@nospecialize T::Type{<:MetaStruct}) = T.parameters[2]
 
-
 unsafe_attach_metadata(x, m) = MetaStruct(x, m)
-unsafe_attach_metadata(@nospecialize(x::AbstractArray), m) = MetaArray(x, m)
+unsafe_attach_metadata(@nospecialize(x::AbstractArray), m) = _MetaArray(x, m)
 unsafe_attach_metadata(@nospecialize(x::Union{Tuple,MetaTuple}), m) = _MetaTuple(x, m)
 unsafe_attach_metadata(@nospecialize(x::AbstractUnitRange), m) = MetaUnitRange(x, m)
 unsafe_attach_metadata(@nospecialize(x::IO), m) = MetaIO(x, m)
