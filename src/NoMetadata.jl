@@ -9,6 +9,8 @@ struct NoMetadata end
 
 const no_metadata = NoMetadata()
 
+Base.keys(::NoMetadata) = ()
+Base.values(::NoMetadata) = ()
 Base.haskey(::NoMetadata, @nospecialize(k)) = false
 Base.get(::NoMetadata, @nospecialize(k), default) = default
 

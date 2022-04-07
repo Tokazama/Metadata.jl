@@ -4,30 +4,7 @@
 
 Returns metadata associated with `x`
 """
-metadata(x) = _metadata(parent_type(x), x)
-metadata(x::AbstractDict) = x
-metadata(x::NamedTuple) = x
-_metadata(::Type{P}, x::T) where {P,T} = metadata(parent(x))
-_metadata(::Type{T}, x::T) where {T} = no_metadata
-
-"""
-    metadata(x::AbstractArray; dim)
-
-Returns the metadata associated with dimension `dim` of `x`.
-"""
-function metadata(x::AbstractArray; dim=nothing)
-    if dim === nothing
-        return _metadata(parent_type(x), x)
-    else
-        return _metadata_dim(x, to_dims(x, dim))
-    end
-end
-_metadata_dim(x, dim::Int) = metadata(axes(x, dim))
-_metadata_dim(x, dim::StaticInt{D}) where {D} = metadata(axes(x, dim))
-_metadata_dim(x::LinearIndices, dim::Int) = metadata(getfield(x.indices, dim))
-_metadata_dim(x::LinearIndices, dim::StaticInt{D}) where {D} = metadata(getfield(x.indices, D))
-_metadata_dim(x::CartesianIndices, dim::Int) = metadata(getfield(x.indices, dim))
-_metadata_dim(x::CartesianIndices, dim::StaticInt{D}) where {D} = metadata(getfield(x.indices, D))
+metadata(x) = no_metadata
 
 """
     metadata_type(::Type{T})
@@ -35,9 +12,7 @@ _metadata_dim(x::CartesianIndices, dim::StaticInt{D}) where {D} = metadata(getfi
 Returns the type of the metadata associated with `x`.
 """
 metadata_type(x) = metadata_type(typeof(x))
-metadata_type(::Type{T}) where {T} = _metadata_type(parent_type(T), T)
-metadata_type(::Type{T}) where {T<:AbstractDict} = T
-metadata_type(::Type{T}) where {T<:NamedTuple} = T
+metadata_type(T::DataType) = NoMetadata
 
 """
     has_metadata(x)::Bool
@@ -48,24 +23,6 @@ has_metadata(x) = has_metadata(typeof(x))
 has_metadata(::Type{T}) where {T} = _has_metadata(metadata_type(T))
 _has_metadata(::Type{NoMetadata}) = false
 _has_metadata(::Type{T}) where {T} = true
-
-"""
-    metadata_type(::Type{<:AbstractArray}; dim)::Type
-
-Returns the type of the metadata of `x`. If `dim` is specified then returns type of
-metadata associated with dimension `dim`.
-"""
-metadata_type(x::AbstractArray; dim=nothing) = metadata_type(typeof(x); dim=dim)
-@inline function metadata_type(::Type{T}; dim=nothing) where {T<:AbstractArray}
-    if dim === nothing
-        return _metadata_type(parent_type(T), T)
-    else
-        return _metadata_dim_type(T, to_dims(T, dim))
-    end
-end
-_metadata_type(::Type{T}, ::Type{T}) where {T} = NoMetadata
-_metadata_type(::Type{P}, ::Type{T}) where {P,T} = metadata_type(P)
-_metadata_dim_type(::Type{T}, dim) where {T} = metadata_type(axes_types(T, dim))
 
 """
     stripmeta(x) -> (data, metadata)
@@ -130,23 +87,9 @@ that `getmeta!` passes `x` to `f` as an argument (as opposed to `f()`).
     out = get(m, k, no_metadata)
     if out === no_metadata
         out = f(x)
-        metadata!(m, k, out)
+        m[k] = out
     end
     return out
-end
-
-"""
-    has_metadata(x::AbstractArray; dim)::Bool
-
-Returns `true` if `x` has metadata associated with dimension `dim`.
-"""
-has_metadata(x::AbstractArray; dim=nothing) = has_metadata(typeof(x); dim=dim)
-function has_metadata(::Type{T}; dim=nothing) where {T<:AbstractArray}
-    if dim === nothing
-        return _has_metadata(metadata_type(T))
-    else
-        return _has_metadata(metadata_type(T; dim=dim))
-    end
 end
 
 """
@@ -155,13 +98,6 @@ end
 Returns `true` if metadata associated with `x` has the key `k`.
 """
 has_metadata(x, k) = haskey(metadata(x), k)
-
-"""
-    has_metadata(x::AbstractArray, k; dim)::Bool
-
-Returns `true` if metadata associated with dimension `dim` of `x` has the key `k`.
-"""
-has_metadata(x::AbstractArray, k; dim=nothing) = haskey(metadata(x; dim=dim), k)
 
 """
     attach_metadata(x, m)
@@ -256,20 +192,14 @@ macro defproperties(T)
 
         Metadata.stripmeta(@nospecialize x::$T) = (getfield(x, 1), getfield(x, 2))
 
-        @inline function Metadata.metadata(@nospecialize(x::$T); dim=nothing, kwargs...)
-            if dim === nothing
-                return getfield(x, 2)
-            else
-                return metadata(parent(x); dim=dim)
-            end
-        end
+        Metadata.metadata(@nospecialize(x::$T)) = getfield(x, 2)
 
         Base.getproperty(x::$T, k::String) = getproperty(x, Symbol(k))
         @inline function Base.getproperty(x::$T, k::Symbol)
             if hasproperty(parent(x), k)
                 return getproperty(parent(x), k)
             else
-                return Metadata.metadata(x, k)
+                return metadata(x)[k]
             end
         end
 
@@ -278,10 +208,10 @@ macro defproperties(T)
             if hasproperty(parent(x), k)
                 return setproperty!(parent(x), k, v)
             else
-                return Metadata.metadata!(x, k, v)
+                return metadata(x)[k] = v
             end
         end
-        @inline Base.propertynames(x::$T) = Metadata.metadata_keys(x)
+        @inline Base.propertynames(x::$T) = keys(metadata(x))
     end)
 end
 

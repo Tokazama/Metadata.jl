@@ -31,21 +31,16 @@ mx = attach_metadata(meta)(x);
 
 @test @inferred(metadata(mx)) == meta
 
-@test metadata(mx; dim=1) === no_metadata
-@test @inferred(metadata(mx; dim=StaticInt(1))) === no_metadata
 @test @inferred(metadata(parent(mx))) === no_metadata
-@test @inferred(metadata(parent(mx), :k)) === no_metadata
 @test @inferred(has_metadata(mx))
 @test @inferred(has_metadata(mx, :m1))
 @test @inferred(!has_metadata(parent(mx), :m1))
-@test metadata(mx, :m1) == 1
-@test Metadata.metadata_keys(mx) == (:m1, :m2)
+@test getmeta(mx, :m1, 3) == 1
 @test mx[1] == 1
 @test mx[1:2] == [1, 1]
 @test metadata(mx[1:2]) == metadata(mx)
 @test @inferred(metadata_type(view(parent(mx), :, :))) <: Metadata.NoMetadata
 @test @inferred(metadata_type(mx)) <: NamedTuple
-@test @inferred(!has_metadata(mx, dim=1))
 
 meta = Dict(:m1 => 1, :m2 => [1,2])
 mx = attach_metadata(x, meta);
@@ -53,17 +48,13 @@ mx = attach_metadata(x, meta);
 @test @inferred(metadata(mx)) == meta
 @test @inferred(has_metadata(mx))
 @test @inferred(has_metadata(mx, :m1))
-@test metadata(mx, :m1) == 1
 @test getmeta(mx, :m1, 4) == 1
 @test getmeta(mx, :m4, 4) == 4
 @test getmeta(ndims, x, :m4) == 2
 @test getmeta!(mx, :m4, 4) == 4
 @test getmeta!(ndims, mx, :m5) == 2
 @test getmeta!(ndims, mx, :m5) == 2
-@test metadata(mx, :m4) == 4
 # Currently Dict doesn't preserve order so we just check for presence of keys
-@test in(:m1, Metadata.metadata_keys(mx))
-@test in(:m2, Metadata.metadata_keys(mx))
 @test in(:m1, propertynames(mx))
 @test in(:m2, propertynames(mx))
 @test mx[1] == 1

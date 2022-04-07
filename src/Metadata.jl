@@ -25,7 +25,6 @@ export
     getmeta!,
     has_metadata,
     metadata,
-    metadata!,
     metadata_type,
     share_metadata
 
@@ -36,7 +35,6 @@ const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
 include("NoMetadata.jl")
 include("interface.jl")
-include("deprecations.jl")
 include("GlobalMetadata.jl")
 include("MetaStruct.jl")
 include("MetaDict.jl")
@@ -52,13 +50,6 @@ ArrayInterface.parent_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[3]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaUnitRange}) = T.parameters[2]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaTuple}) = T.parameters[2]
 ArrayInterface.parent_type(@nospecialize T::Type{<:MetaIO}) = T.parameters[1]
-@inline function metadata_type(::Type{T}; dim=nothing) where {M,A,T<:MetaArray{<:Any,<:Any,M,A}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(A; dim=dim)
-    end
-end
 
 metadata_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[3]
 metadata_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[4]
@@ -109,8 +100,8 @@ function test_wrapper(::Type{T}, data) where {T}
     @test parent(x) === data
 
     @test isempty(metadata(x))
-    metadata!(x, :m1, 1)
-    @test metadata(x, :m1) == 1
+    metadata(x)[:m1] = 1
+    @test getmeta(x, :m1, 3) == 1
 
     y = share_metadata(x, ones(2, 2))
     @test y isa Metadata.MetaArray

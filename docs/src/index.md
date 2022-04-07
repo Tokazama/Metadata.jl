@@ -17,7 +17,6 @@ Metadata.@has_metadata
 Metadata.metadata
 Metadata.@metadata
 
-Metadata.metadata!
 Metadata.@metadata!
 
 Metadata.copy_metadata

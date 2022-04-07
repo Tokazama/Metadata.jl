@@ -124,7 +124,7 @@ struct MetaNoop{P<:AbstractNoop,M} <: AbstractNoop
 end
 
 Metadata.metadata(x::MetaNoop) = getfield(x, :metadata)
-Metadata.attach_metadata(x::AbstractNoop, m) = MetaNoop(x, m)
+Metadata.unsafe_attach_metadata(x::AbstractNoop, m) = MetaNoop(x, m)
 Metadata.metadata_type(::Type{MetaNoop{P,M}}) where {P,M} = M
 
 ArrayInterface.parent_type(::Type{MetaNoop{P,M}}) where {P,M} = P

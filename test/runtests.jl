@@ -17,11 +17,7 @@ Aqua.test_all(Metadata)
     io = IOBuffer()
     show(io, Metadata.no_metadata)
     @test String(take!(io)) == "no_metadata"
-    @test metadata_type(Dict{Symbol,Any}) <: Dict{Symbol,Any}
-    @test metadata_type(NamedTuple{(),Tuple{}}) <: NamedTuple{(),Tuple{}}
     @test Metadata.MetadataPropagation(Metadata.NoMetadata) == Metadata.DropMetadata()
-    @test @inferred(metadata(Dict{Symbol,Any}())) == Dict{Symbol,Any}()
-    @test @inferred(metadata((x =1,))) == (x =1,)
     @test @inferred(metadata(Main)) isa GlobalMetadata
     x = rand(4)
     m = metadata(Main)
@@ -72,6 +68,7 @@ end
     include("MetaUnitRange.jl")
 end
 
+#=
 @testset "LinearIndices/CartesianIndices" begin
     meta = Dict{Symbol,Any}(:m1 => 1, :m2 => [1, 2])
     x = LinearIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
@@ -102,6 +99,7 @@ end
     @test metadata(x, dim=1) == meta
     @test has_metadata(x, dim=1)
 end
+=#
 
 @testset "MetaIO" begin
     include("MetaIO.jl")

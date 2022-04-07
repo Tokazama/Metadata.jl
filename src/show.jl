@@ -7,10 +7,9 @@ Creates summary readout of metadata for `x`.
 metadata_summary(x) = metadata_summary(stdout, x)
 function metadata_summary(io::IO, x)
     print(io, "$(lpad(Char(0x2022), 3)) metadata:")
-    suppress = getmeta(x, :suppress, no_metadata)
+    suppress = get(x, :suppress, no_metadata)
     if suppress !== no_metadata
-        suppress = metadata(x, :suppress)
-        for k in metadata_keys(x)
+        for (k,v) in pairs(x)
             if k !== :suppress
                 println(io)
                 print(io, "     ")
@@ -19,17 +18,17 @@ function metadata_summary(io::IO, x)
                 if in(k, suppress)
                     print(io, "<suppressed>")
                 else
-                    print(io, metadata(x, k))
+                    print(io, v)
                 end
             end
         end
     else
-        for k in metadata_keys(x)
+        for (k,v) in pairs(x)
             println(io)
             print(io, "     ")
             print(io, "$k")
             print(io, " = ")
-            print(io, metadata(x, k))
+            print(io, v)
         end
     end
 end
@@ -75,7 +74,7 @@ function Base.showarg(io::IO, x::MetaArray, toplevel)
     Base.showarg(io, parent(x), false)
     print(io, ", ", showarg_metadata(x))
     println(io)
-    metadata_summary(io, x)
+    metadata_summary(io, metadata(x))
     print(io, "\n)")
 end
 function Base.show(io::IO, m::MIME"text/plain", x::MetaUnitRange)
@@ -85,13 +84,13 @@ function Base.show(io::IO, m::MIME"text/plain", x::MetaUnitRange)
         print(io, "attach_metadata(")
         print(io, parent(x))
         print(io, ", ", Metadata.showarg_metadata(x), ")\n")
-        Metadata.metadata_summary(io, x)
+        Metadata.metadata_summary(io, metadata(x))
     end
 end
 
 function Base.show(io::IO, ::MIME"text/plain", x::MetaStruct)
     print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
-    Metadata.metadata_summary(io, x)
+    Metadata.metadata_summary(io, metadata(x))
 end
 
 Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
