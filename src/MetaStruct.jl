@@ -12,10 +12,6 @@ struct MetaStruct{P,M}
     metadata::M
 end
 
-ArrayInterface.parent_type(::Type{<:MetaStruct{P}}) where {P} = P
-
-metadata_type(::Type{<:MetaStruct{<:Any,M}}) where {M} = M
-
 Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
 
 Base.copy(x::MetaStruct) = propagate_metadata(x, deepcopy(parent(x)))

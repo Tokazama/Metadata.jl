@@ -43,5 +43,3 @@ function Base.write(@nospecialize(s::MetaIO), x::SubArray{T,N,P,I,L} where L whe
     return write(parent(s), x)
 end
 
-@inline metadata_type(::Type{T}) where {IOT,M,T<:MetaIO{IOT,M}} = M
-

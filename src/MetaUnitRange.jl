@@ -33,15 +33,6 @@ struct MetaUnitRange{T,P<:AbstractUnitRange{T},M} <: AbstractUnitRange{T}
     MetaUnitRange(p::AbstractRange, m) = MetaUnitRange{eltype(p)}(p, m)
 end
 
-ArrayInterface.parent_type(::Type{<:MetaUnitRange{<:Any,P,<:Any}}) where {P} = P
-@inline function metadata_type(::Type{T}; dim=nothing) where {R,M,T<:MetaUnitRange{<:Any,R,M}}
-    if dim === nothing
-        return M
-    else
-        return metadata_type(R; dim=dim)
-    end
-end
-
 for f in [:first, :last, :length]
     eval(:(Base.$(f)(@nospecialize(x::MetaUnitRange)) = Base.$(f)(getfield(x, 1))))
 end

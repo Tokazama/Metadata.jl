@@ -113,17 +113,17 @@ end
 for f in [:can_change_size, :defines_strides, :known_size, :known_length, :axes_types,
    :known_offsets, :known_strides, :contiguous_axis, :contiguous_axis_indicator,
    :stride_rank, :contiguous_batch_size,:known_first, :known_last, :known_step]
-    eval(:(ArrayInterface.$(f)(T::Type{<:MetaArray}) = ArrayInterface.$(f)(parent_type(T))))
+    eval(:(ArrayInterface.$(f)(@nospecialize T::Type{<:MetaArray}) = ArrayInterface.$(f)(parent_type(T))))
 end
 
-Base.pointer(x::MetaArray, n::Integer) = pointer(parent(x), n)
+Base.pointer(@nospecialize(x::MetaArray), n::Integer) = pointer(parent(x), n)
 
 for f in [:axes, :size, :strides, :offsets]
-    eval(:(ArrayInterface.$(f)(x::MetaArray) = ArrayInterface.$f(getfield(x, :parent))))
+    eval(:(ArrayInterface.$(f)(@nospecialize(x::MetaArray)) = ArrayInterface.$f(getfield(x, :parent))))
 end
 
 Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
-Base.map(f, A::MetaArray) = propagate_metadata(x, map(f, parent(A)), )
+Base.map(f, @nospecialize(A::MetaArray)) = propagate_metadata(x, map(f, parent(A)), )
 
 # similar
 Base.similar(x::MetaArray) = propagate_metadata(x, similar(parent(x)))
@@ -141,7 +141,7 @@ end
 # mutating methods
 for f in [:push!, :pushfirst!, :prepend!, :append!, :sizehint!, :resize!]
     @eval begin
-        function Base.$(f)(A::MetaArray, args...)
+        function Base.$(f)(@nospecialize(A::MetaArray), args...)
             can_change_size(A) || throw(MethodError($(f), (A, item)))
             Base.$(f)(getfield(A, :parent), args...)
             return A
@@ -151,7 +151,7 @@ end
 
 for f in [:empty!, :pop!, :popfirst!, :popat!, :insert!, :deleteat!]
     @eval begin
-        function Base.$(f)(A::MetaArray, args...)
+        function Base.$(f)(@nospecialize(A::MetaArray), args...)
             can_change_size(A) || throw(MethodError($f, (A,)))
             $(f)(getfield(A, :parent), args...)
             return A
@@ -165,22 +165,22 @@ end
 permute_metadata(m) = m
 permute_metadata(m, perm) = m
 
-function LinearAlgebra.transpose(x::MetaVector)
+function LinearAlgebra.transpose(@nospecialize x::MetaVector)
     attach_metadata(transpose(parent(x)), permute_metadata(metadata(x)))
 end
-function Base.adjoint(x::MetaVector)
+function Base.adjoint(@nospecialize x::MetaVector)
     attach_metadata(adjoint(parent(x)), permute_metadata(metadata(x)))
 end
-function Base.permutedims(x::MetaVector)
+function Base.permutedims(@nospecialize x::MetaVector)
     attach_metadata(permutedims(parent(x)), permute_metadata(metadata(x)))
 end
-function LinearAlgebra.transpose(x::MetaMatrix)
+function LinearAlgebra.transpose(@nospecialize x::MetaMatrix)
     attach_metadata(transpose(parent(x)), permute_metadata(metadata(x)))
 end
-function Base.adjoint(x::MetaMatrix)
+function Base.adjoint(@nospecialize x::MetaMatrix)
     attach_metadata(adjoint(parent(x)), permute_metadata(metadata(x)))
 end
-function Base.permutedims(x::MetaMatrix)
+function Base.permutedims(@nospecialize x::MetaMatrix)
     attach_metadata(permutedims(parent(x)), permute_metadata(metadata(x)))
 end
 @inline function Base.permutedims(x::MetaArray{T,N}, perm::NTuple{N,Int}) where {T,N}
@@ -193,35 +193,35 @@ index_metadata(m, inds) = m
 for f in [:getindex, :view]
     unsafe = Symbol(:unsafe_, f)
     @eval begin
-        function Base.$(f)(A::MetaArray, args...)
+        function Base.$(f)(@nospecialize(A::MetaArray), args...)
             inds = ArrayInterface.to_indices(A, args)
             @boundscheck checkbounds(A, inds...)
             $(unsafe)(A, inds)
         end
-        function Base.$(f)(A::MetaArray; kwargs...)
+        function Base.$(f)(@nospecialize(A::MetaArray); kwargs...)
             inds = ArrayInterface.to_indices(A, ArrayInterface.find_all_dimnames(dimnames(A), static(keys(kwargs)), Tuple(values(kwargs)), :))
             @boundscheck checkbounds(A, inds...)
             $(unsafe)(A, inds)
         end
         @inline $(unsafe)(A, inds::Tuple{Vararg{Integer}}) = @inbounds($(f)(A, inds...))
-        @inline $(unsafe)(A::MetaArray, inds::Tuple{Vararg{Integer}}) = $(unsafe)(getfield(A, :parent), inds)
+        @inline $(unsafe)(@nospecialize(A::MetaArray), inds::Tuple{Vararg{Integer}}) = $(unsafe)(getfield(A, :parent), inds)
         @inline $(unsafe)(A, inds::Tuple{Vararg{Any}}) = @inbounds($(f)(A, inds...))
-        @inline function $(unsafe)(A::MetaArray, inds::Tuple{Vararg{Any}})
+        @inline function $(unsafe)(@nospecialize(A::MetaArray), inds::Tuple{Vararg{Any}})
             attach_metadata($(unsafe)(getfield(A, :parent), inds), index_metadata(getfield(A, :metadata), inds))
         end
     end
 end
-function Base.setindex!(A::MetaArray, vals, args...)
+function Base.setindex!(@nospecialize(A::MetaArray), vals, args...)
     inds = ArrayInterface.to_indices(A, args)
     @boundscheck checkbounds(A, inds...)
     unsafe_setindex!(getfield(A, :parent), vals, inds)
 end
-function Base.setindex!(A::MetaArray, vals; kwargs...)
+function Base.setindex!(@nospecialize(A::MetaArray), vals; kwargs...)
     inds = ArrayInterface.to_indices(A, ArrayInterface.find_all_dimnames(dimnames(A), static(keys(kwargs)), Tuple(values(kwargs)), :))
     @boundscheck checkbounds(A, inds...)
     unsafe_setindex!(getfield(A, :parent), vals, inds)
 end
-@inline unsafe_setindex!(A::MetaArray, vals, inds) = unsafe_setindex!(getfield(A, :parent), vals, inds)
+@inline unsafe_setindex!(@nospecialize(A::MetaArray), vals, inds) = unsafe_setindex!(getfield(A, :parent), vals, inds)
 @inline unsafe_setindex!(A, vals, inds) = @inbounds setindex!(A, vals, inds...)
 
 # Reducing dimensions
@@ -242,7 +242,7 @@ for (mod, funs) in (
     end
 end
 
-function Base.mapreduce(f1, f2, a::MetaArray; dims=:, kwargs...)
+function Base.mapreduce(f1, f2, @nospecialize(a::MetaArray); dims=:, kwargs...)
     d = ArrayInterface.to_dim(a, dims)
     attach_metadata(
         mapreduce(f1, f2, parent(a); dims=d, kwargs...),
@@ -253,7 +253,7 @@ end
 # 1 Arg, 2 Results
 for (mod, funs) in ((:Base, (:findmax, :findmin)),)
     for fun in funs
-        @eval function $mod.$fun(a::MetaArray; dims=:, kwargs...)
+        @eval function $mod.$fun(@nospecialize(a::MetaArray); dims=:, kwargs...)
             d = ArrayInterface.to_dims(a, dims)
             data, index = $mod.$fun(parent(a); dims=d, kwargs...)
             return (attach_metadata(data, reduce_metadata(metadata(d), d)), index)
@@ -264,10 +264,10 @@ end
 # Reshape
 reshape_metadata(m, dims) = MetadataInterface.no_metadata
 
-function _reshape(x::MetaArray, dims)
+function _reshape(@nospecialize(x::MetaArray), dims)
     attach_metadata(reshape(parent(x), dims), reshape_metadata(metadata(x), dims))
 end
-Base.reshape(x::MetaVector, dim::Colon) = _reshape(x, dims)
+Base.reshape(@nospecialize(x::MetaVector), dim::Colon) = _reshape(x, dims)
 Base.reshape(x::MetaArray{T,N}, ndims::Val{N}) where {T, N} = _reshape(x, dims)
 
 #=
@@ -282,7 +282,7 @@ Base.reshape(x::MetaArray, dims::Tuple{Vararg{Colon}}) = _reshape(x, dims)
 =#
 
 # Accumulators
-function Base.accumulate(op, A::MetaArray; dims=nothing, kw...)
+function Base.accumulate(op, @nospecialize(A::MetaArray); dims=nothing, kw...)
     if dims === nothing
         return propagate_metadata(A, accumulate(op, parent(A); dims=dims, kw...))
     else
@@ -293,13 +293,13 @@ end
 # 1 Arg - no default for `dims` keyword
 for (mod, funs) in ((:Base, (:cumsum, :cumprod, :sort, :sortslices)),)
     for fun in funs
-        @eval function $mod.$fun(a::MetaArray; dims, kwargs...)
+        @eval function $mod.$fun(@nospecialize(a::MetaArray); dims, kwargs...)
             d = ArrayInterface.to_dims(a, dims)
             propagate_metadata(a, $mod.$fun(parent(a); dims=d, kwargs...))
         end
 
         # Vector case
-        @eval function $mod.$fun(a::MetaArray{T,1}; kwargs...) where {T}
+        @eval function $mod.$fun(@nospecialize(a::MetaVector); kwargs...)
             propagate_metadata(a, $mod.$fun(parent(a); kwargs...))
         end
     end

@@ -19,10 +19,7 @@ metadata_type(T::DataType) = NoMetadata
 
 Returns `true` if `x` has metadata.
 """
-has_metadata(x) = has_metadata(typeof(x))
-has_metadata(::Type{T}) where {T} = _has_metadata(metadata_type(T))
-_has_metadata(::Type{NoMetadata}) = false
-_has_metadata(::Type{T}) where {T} = true
+@inline has_metadata(x) = !(metadata_type(x) <: NoMetadata)
 
 """
     stripmeta(x) -> (data, metadata)
