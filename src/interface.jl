@@ -34,12 +34,19 @@ Returns the the data and metadata immediately bound to `x`.
     end
 end
 
+struct GetMeta{K,D}
+    key::K
+    default::D
+end
+
+@inline (g::GetMeta)(x) = _getmeta(metadata(x), getfield(g, 1), getfield(g, 2))
+
 """
     getmeta(x, key, default)
 
 Return the metadata associated with `key`, or return `default` if `key` is not found.
 """
-@inline getmeta(x, k, default) = _getmeta(metadata(x), k, default)
+@inline getmeta(x, k, default) = GetMeta(k, default)(x)
 _getmeta(m, k, default) = get(m, k, default)
 @inline _getmeta(m::AbstractDict{String}, k::Symbol, default) = get(m, String(k), default)
 @inline _getmeta(m::AbstractDict{Symbol}, k::String, default) = get(m, Symbol(k), default)
