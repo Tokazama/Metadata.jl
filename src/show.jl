@@ -9,7 +9,7 @@ metadata_summary(io::IO, x) = print(io, x)
 metadata_summary(io::IO, @nospecialize(x::NamedTuple)) = metadata_summary(io, pairs(x))
 function metadata_summary(io::IO, @nospecialize(x::AbstractDict))
     print(io, "$(lpad(Char(0x2022), 3)) metadata:")
-    suppress = get(x, :suppress, no_metadata)
+    suppress = get(x, :suppress, no_data)
     for (k,v) in pairs(x)
         if k !== :suppress
             print(io, "\n     $(k) = ")
@@ -21,6 +21,7 @@ function metadata_summary(io::IO, @nospecialize(x::AbstractDict))
         end
     end
 end
+
 
 # this is a currently informal way of changing how showarg displays metadata in
 # the argument list. If someone makes a metadata type that's long or complex they

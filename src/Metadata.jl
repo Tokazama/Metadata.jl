@@ -7,7 +7,7 @@ end Metadata
 
 using ArrayInterface
 using ArrayInterface: parent_type, known_first, known_last, known_step, StaticInt, to_dims, axes_types
-using Base: @propagate_inbounds, OneTo
+using Base: @propagate_inbounds, OneTo, tail
 using LinearAlgebra
 using Statistics
 using Test
@@ -27,7 +27,6 @@ export
     metadata_type,
     share_metadata
 
-include("NoMetadata.jl")
 include("MetaStruct.jl")
 include("interface.jl")
 include("GlobalMetadata.jl")
@@ -73,8 +72,8 @@ macro def_meta_node(MT, unsafe_constructor=nothing, T=nothing)
 
         Base.getproperty(x::$MT, k::String) = getproperty(x, Symbol(k))
         @inline function Base.getproperty(x::$MT, k::Symbol)
-            out = get(properties(x), k, Metadata.no_metadata)
-            if out === Metadata.no_metadata
+            out = get(properties(x), k, Metadata.no_data)
+            if out === Metadata.no_data
                 return getproperty(parent(x), k)
             else
                 return out
@@ -94,7 +93,7 @@ macro def_meta_node(MT, unsafe_constructor=nothing, T=nothing)
     end
     if T !== nothing && unsafe_constructor !== nothing
         push!(blk.args, :(Metadata.unsafe_attach_metadata(@nospecialize(x::$T), @nospecialize(m)) = $(unsafe_constructor)(x, m)))
-        push!(blk.args, :(Metadata.unsafe_attach_metadata(@nospecialize(x::$T), ::Metadata.NoMetadata) = x))
+        push!(blk.args, :(Metadata.unsafe_attach_metadata(@nospecialize(x::$T), ::Metadata.NoData) = x))
     end
     esc(blk)
 end

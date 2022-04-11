@@ -85,7 +85,7 @@ MetadataPropagation(x) = MetadataPropagation(typeof(x))
 MetadataPropagation(::Type{T}) where {T} = MetadataPropagation(metadata_type(T))
 MetadataPropagation(::Type{T}) where {T<:AbstractDict} = ShareMetadata()
 MetadataPropagation(::Type{T}) where {T<:NamedTuple} = ShareMetadata()
-MetadataPropagation(::Type{T}) where {T<:NoMetadata} = DropMetadata()
+MetadataPropagation(::Type{T}) where {T<:NoData} = DropMetadata()
 
 function propagate_metadata(src, dst)
     return propagate_metadata(MetadataPropagation(src), src, dst)

@@ -34,7 +34,7 @@ Base.getindex(@nospecialize(t::MetaTuple), ::Colon) = t
 end
 
 # FIXME
-Base.empty(@nospecialize x::MetaTuple) = _MetaTuple((), no_metadata)
+Base.empty(@nospecialize x::MetaTuple) = _MetaTuple((), no_data)
 
 function Base.setindex(x::MetaTuple, v, i::Int)
     _MetaTuple(Base.setindex(parent(x), v, i), metadata(x))
@@ -56,8 +56,8 @@ function Base.get(@nospecialize(t::MetaTuple), i::Integer, default)
     end
 end
 function Base.get(f::Union{Type,Function}, @nospecialize(t::MetaTuple), i::Integer)
-    out = get(t, i, no_metadata)
-    if out === no_metadata
+    out = get(t, i, no_data)
+    if out === no_data
         return f()
     else
         return out

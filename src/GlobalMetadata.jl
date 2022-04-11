@@ -117,7 +117,7 @@ Retreive metadata associated with the object id of `x` (`objectid(x)`) in stored
 global metadata of module `m`. If the key `k` is specified only the value associated with
 that key is returned.
 """
-global_metadata(x, m::Module) = get(metadata(m), objectid(x), no_metadata)
+global_metadata(x, m::Module) = get(metadata(m), objectid(x), no_data)
 global_metadata(x, k, m::Module) = getindex(global_metadata(x, m), k)
 
 """
@@ -171,7 +171,7 @@ Does `x` have metadata stored in the curren modules' global metadata? Checks for
 presenece of the key `k` if specified.
 """
 macro has_metadata(x)
-    esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_metadata))
+    esc(:(Metadata.global_metadata($x, @__MODULE__) !== Metadata.no_data))
 end
 macro has_metadata(x, k)
     esc(:(haskey(Metadata.global_metadata($x, @__MODULE__), $k)))

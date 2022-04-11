@@ -25,7 +25,7 @@ mx = attach_metadata(meta)(x);
 
 @test @inferred(metadata(mx)) == meta
 
-@test @inferred(metadata(parent(mx))) === no_metadata
+@test @inferred(metadata(parent(mx))) === no_data
 @test @inferred(has_metadata(mx))
 @test @inferred(has_metadata(mx, :m1))
 @test @inferred(!has_metadata(parent(mx), :m1))
@@ -33,7 +33,7 @@ mx = attach_metadata(meta)(x);
 @test mx[1] == 1
 @test mx[1:2] == [1, 1]
 @test metadata(mx[1:2]) == metadata(mx)
-@test @inferred(metadata_type(view(parent(mx), :, :))) <: Metadata.NoMetadata
+@test @inferred(metadata_type(view(parent(mx), :, :))) <: Metadata.NoData
 @test @inferred(metadata_type(mx)) <: NamedTuple
 
 meta = Dict(:m1 => 1, :m2 => [1,2])

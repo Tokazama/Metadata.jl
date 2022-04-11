@@ -1,63 +1,139 @@
 
 """
-    Meta(key, data)
+    NoData
+
+Internal type for the `Metadata` package that indicates the absence of any metadata.
+_DO NOT_ store metadata with the value `NoData()`.
+
+!!! warning
+    This is not part of the public API and may change without notice.
+"""
+struct NoData end
+
+Base.keys(::NoData) = ()
+Base.values(::NoData) = ()
+Base.haskey(::NoData, @nospecialize(k)) = false
+Base.get(::NoData, @nospecialize(k), d) = d
+Base.get(f::Union{Type,Function}, ::NoData, @nospecialize(k)) = f()
+Base.iterate(::NoData) = nothing
+Base.in(_, ::NoData) = false
+
+const no_data = NoData()
+
+Base.show(io::IO, ::NoData) = show(io, MIME"text/plain"(), no_data)
+Base.show(io::IO, ::MIME"text/plain", ::NoData) = print(io, "no_data")
+
+"""
+    MDNode(key, data)
 
 Dedicated type for associating metadata with `key`. This is used to selectively reach
-metadata using `Metadata.getmeta(x, key, d)`. `key` must be of a singleton type.
+metadata using `MDNodedata.getmeta(x, key, d)`. `key` must be of a singleton type.
 
 !!! warning "Experimental"
     This is experimental and may change without warning
 """
-struct Meta{M,P,K}
+struct MDNode{M,P,K}
     parent::P
     metadata::M
 
-    global _Meta
-    _Meta(@nospecialize(k), @nospecialize(p), @nospecialize(m)) = new{typeof(m),typeof(p),k}(p, m)
-    _Meta(@nospecialize(k), @nospecialize(p)) = new{NoMetadata,typeof(p),k}(p, no_metadata)
+    global _MDNode
+    _MDNode(@nospecialize(k), @nospecialize(p), @nospecialize(m)) = new{typeof(m),typeof(p),k}(p, m)
+    _MDNode(@nospecialize(k), @nospecialize(p)) = new{NoData,typeof(p),k}(p, no_data)
+end
+function MDNode(k::K, @nospecialize(p), @nospecialize(m::MDNode)) where {K}
+    @assert Base.issingletontype(K)
+    _MDNode(k, p, m)
+end
+function MDNode(k::K, @nospecialize(p), ::NoData) where {K}
+    @assert Base.issingletontype(K)
+    _MDNode(k, p, m)
+end
+function MDNode(k::K, @nospecialize(p)) where {K}
+    @assert Base.issingletontype(K)
+    _MDNode(k, p)
 end
 
-ArrayInterface.parent_type(@nospecialize T::Type{<:Meta}) = T.parameters[2]
+ArrayInterface.parent_type(@nospecialize T::Type{<:MDNode}) = T.parameters[2]
 
-Base.parent(@nospecialize x::Meta) = getfield(x, :parent)
-
-function Base.show(io::IO, ::MIME"text/plain", @nospecialize(m::Meta))
-    print(io, "Meta(", metakey(m), ", ", parent(m), ", ", metadata(m), ")")
-end
+Base.parent(@nospecialize x::MDNode) = getfield(x, :parent)
 
 """
-    Metadata.rmkey(m::Meta) -> parent(m)
+    Metadata.rmkey(m::MDNode) -> parent(m)
     Metadata.rmkey(m) -> m
 
-Returns the the metadata key associated bound to `m`, if `m` is `Meta`. This is only
+Returns the the metadata key associated bound to `m`, if `m` is `MDNode`. This is only
 intended for internal use.
 
 !!! warning
     This is experimental and may change without warning
 """
-rmkey(@nospecialize x::Meta) = parent(x)
+rmkey(@nospecialize x::MDNode) = parent(x)
 rmkey(@nospecialize x) = x
 
 """
     Metadata.metakey(m)
 
 Returns the key associated withe the metadata `m`. The only way to attach a key to
-metadata is through `Meta(key, m)`.
+metadata is through `MDNode(key, m)`.
 
 !!! warning
     This is experimental and may change without warning
 """
-metakey(@nospecialize x::Meta) = metakey(typeof(x))
-metakey(@nospecialize T::Type{<:Meta}) = T.parameters[3]
+metakey(@nospecialize x::MDNode) = metakey(typeof(x))
+metakey(@nospecialize T::Type{<:MDNode}) = T.parameters[3]
+
+Base.show(io::IO, ::MIME"text/plain", @nospecialize(m::MDNode)) = printmeta(io, m, "")
+
+"""
+    MDList(first::MDNode, tail::Union{MDList,NoData})
+
+Iterable list of metadata.
+
+!!! warning "Experimental"
+    This is experimental and may change without warning
+"""
+struct MDList{F,T}
+    first::F
+    tail::T
+
+    MDList(@nospecialize(f::MDNode), @nospecialize(t::MDList)) = new{typeof(f),typeof(t)}(f, t)
+    MDList(@nospecialize(f::MDNode), t::NoData) = new{typeof(f),NoData}(f, t)
+end
+
+const MDListEnd{H} = MDList{H,NoData}
+
+Base.first(@nospecialize mdl::MDList) = getfield(mdl, :first)
+
+Base.tail(@nospecialize mdl::MDList) = getfield(mdl, :tail)
+
+Base.iterate(@nospecialize(mdl::MDList)) = first(mdl), tail(mdl)
+@inline function Base.iterate(@nospecialize(mdl::MDList), @nospecialize(state))
+    if state === no_data
+        return nothing
+    else
+        return first(state), tail(state)
+    end
+end
+
+function Base.length(@nospecialize mdl::MDList)
+    t = tail(mdl)
+    if t === no_data
+        return 1
+    else
+        return 1 + length(mdl)
+    end
+end
+
+Base.show(io::IO, ::MIME"text/plain", @nospecialize(m::MDList)) = printmeta(io, m, "")
 
 """
     metadata(x)
 
 Returns metadata immediately bound to `x`. If no metadata is bound to `x` then
-`Metadata.no_metadata` is returned.
+`Metadata.no_data` is returned.
 """
-metadata(x) = no_metadata
-metadata(@nospecialize x::Meta) = getfield(x, :metadata)
+metadata(x) = no_data
+metadata(@nospecialize x::MDNode) = getfield(x, :metadata)
 
 """
     metadata_type(::Type{T})
@@ -65,29 +141,29 @@ metadata(@nospecialize x::Meta) = getfield(x, :metadata)
 Returns the type of the metadata associated with `T`.
 """
 metadata_type(x) = metadata_type(typeof(x))
-metadata_type(T::DataType) = NoMetadata
-metadata_type(@nospecialize m::Meta) = typeof(m).parameters[1]
-metadata_type(@nospecialize T::Type{<:Meta}) = T.parameters[1]
+metadata_type(T::DataType) = NoData
+metadata_type(@nospecialize m::MDNode) = typeof(m).parameters[1]
+metadata_type(@nospecialize T::Type{<:MDNode}) = T.parameters[1]
 
 # This summarizes all nested metadata wrappers using only the singleton types.
 # The benefits are:
 #
 # - The return value is agnostic to the type of any parent data (e.g.,
-#   `parent(::MetaStruct)`, `parent(::KeyedMeta)`, etc.), thus avoiding extra code gen.
+#   `parent(::MetaStruct)`, `parent(::MDNode)`, etc.), thus avoiding extra code gen.
 # - Since everything is a singleton type it's easy for the compiler to completely inline
 #   even deeply nested types.
 #
 # Once we have this type we can use it to create a map of all the metadata nodes in the type
 # domain without losing information or trying to specialize anymore.
-@inline layout(@nospecialize x::Meta) = _Meta(metakey(x), layout(parent(x)))
+@inline layout(@nospecialize x::MDNode) = _MDNode(metakey(x), layout(parent(x)))
 @inline function layout(@nospecialize x)
     m = metadata(x)
-    if m !== no_metadata
+    if m !== no_data
         return _MetaStruct(layout(parent(x)), layout(m))
     elseif Base.issingletontype(typeof(x))
         return x
     else
-        return no_metadata
+        return no_data
     end
 end
 
@@ -96,7 +172,7 @@ end
 
 Returns `true` if `x` has metadata.
 """
-@inline has_metadata(x) = !(metadata_type(x) <: NoMetadata)
+@inline has_metadata(x) = !(metadata_type(x) <: NoData)
 
 """
     stripmeta(x) -> (data, metadata)
@@ -104,8 +180,8 @@ Returns `true` if `x` has metadata.
 Returns the the data and metadata immediately bound to `x`.
 """
 @inline function stripmeta(@nospecialize x)
-    if metadata_type(x) <: NoMetadata
-        return (x, no_metadata)
+    if metadata_type(x) <: NoData
+        return (x, no_data)
     else
         return (parent(x), metadata(x))
     end
@@ -130,8 +206,8 @@ this behavior differs from `Base.get(::Function, x, keys)` in that `getmeta` pas
 `f` as an argument (as opposed to `f()`).
 """
 @inline function getmeta(f::Union{Function,Type}, x, k)
-    m = getmeta(metadata(x), k, no_metadata)
-    if m === no_metadata
+    m = getmeta(metadata(x), k, no_data)
+    if m === no_data
         return f(x)
     else
         return m
@@ -166,7 +242,7 @@ function attach_metadata(x, m)
     checkmeta(x, m)
     unsafe_attach_metadata(x, m)
 end
-attach_metadata(x, ::NoMetadata) = x
+attach_metadata(x, ::NoData) = x
 attach_metadata(m) = Base.Fix2(attach_metadata, m)
 
 """
@@ -190,7 +266,7 @@ binding metadata to `x` should usually  define a unique `unsafe_attach_metadata`
 See also [`attach_metadata`](@ref)
 """
 unsafe_attach_metadata(x, m) = _MetaStruct(x, m)
-unsafe_attach_metadata(@nospecialize(x::MetaStruct), ::NoMetadata) = _MetaStruct(x, m)
+unsafe_attach_metadata(@nospecialize(x::MetaStruct), ::NoData) = _MetaStruct(x, m)
 unsafe_attach_metadata(@nospecialize(x::MetaStruct), @nospecialize(m)) = _MetaStruct(x, m)
 
 """
@@ -199,4 +275,34 @@ unsafe_attach_metadata(@nospecialize(x::MetaStruct), @nospecialize(m)) = _MetaSt
 Returns properties associated with bound to `x`.
 """
 properties(@nospecialize(x)) = metadata(x)
+
+
+# printmeta
+printmeta(io::IO, m, prefix::String) = print(io, m)
+@inline function printmeta(io::IO, @nospecialize(mdl::MDList), prefix::String)
+    print(io, "MDList")
+    N = length(mdl)
+    i = 1
+    @inbounds for m_i in mdl
+        child_prefix = prefix
+        print(io, prefix)
+        if i === nm
+            print(io, "└")
+            child_prefix *= " " ^ (Base.textwidth("│") + Base.textwidth("─") + 1)
+        else
+            print(io, "├")
+            child_prefix *= "│" * " " ^ (Base.textwidth("─") + 1)
+        end
+        print(io, "─", ' ')
+        printmeta(io, m_i, child_prefix)
+        i += 1
+    end
+end
+function printmeta(io::IO, @nospecialize(m::MDNode), prefix::String)
+    print(io, metakey(mk), " => ", parent(m))
+    if !(metadata_type(m) <: NoData)
+        println(io)
+        printmeta(io, metadata(m), prefix)
+    end
+end
 

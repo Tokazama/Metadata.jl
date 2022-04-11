@@ -6,7 +6,7 @@ using Metadata
 using Test
 
 using ArrayInterface: parent_type, StaticInt
-using Metadata: MetaArray, no_metadata, GlobalMetadata
+using Metadata: MetaArray, no_data, GlobalMetadata
 
 
 Aqua.test_all(Metadata)
@@ -15,9 +15,9 @@ Aqua.test_all(Metadata)
 
 @testset "methods" begin
     io = IOBuffer()
-    show(io, Metadata.no_metadata)
-    @test String(take!(io)) == "no_metadata"
-    @test Metadata.MetadataPropagation(Metadata.NoMetadata) == Metadata.DropMetadata()
+    show(io, Metadata.no_data)
+    @test String(take!(io)) == "no_data"
+    @test Metadata.MetadataPropagation(Metadata.NoData) == Metadata.DropMetadata()
     @test @inferred(metadata(Main)) isa GlobalMetadata
     x = rand(4)
     m = metadata(Main)
@@ -72,23 +72,23 @@ end
 @testset "LinearIndices/CartesianIndices" begin
     meta = Dict{Symbol,Any}(:m1 => 1, :m2 => [1, 2])
     x = LinearIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
-    @test @inferred(metadata(x)) == no_metadata 
+    @test @inferred(metadata(x)) == no_data 
     @test metadata(x, dim=1) == meta
     @test metadata(x, dim=StaticInt(1)) == meta
     @test metadata(x, :m1, dim=1) == 1
     @test metadata(x, :m1, dim=StaticInt(1)) == 1
     metadata!(x, :m1, 2, dim=1)
     @test metadata(x, :m1, dim=1) == 2
-    @test @inferred(metadata(x)) == Metadata.no_metadata
+    @test @inferred(metadata(x)) == Metadata.no_data
     @test @inferred(has_metadata(x, dim=1))
     @test @inferred(!has_metadata(x))
 
     meta = (m1 =1, m2=[1, 2])
     x = CartesianIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
-    @test @inferred(metadata(x)) == no_metadata 
+    @test @inferred(metadata(x)) == no_data 
     @test metadata(x, dim=1) == meta
     @test metadata(x, dim=StaticInt(1)) == meta
-    @test metadata(x) == Metadata.no_metadata
+    @test metadata(x) == Metadata.no_data
     @test @inferred(has_metadata(x, dim=1))
     @test @inferred(!has_metadata(x))
 end
@@ -118,7 +118,7 @@ end
 
     x = MyType(ones(2,2))
     GC.gc()
-    @test @metadata(x) == Metadata.no_metadata  # test finalizer
+    @test @metadata(x) == Metadata.no_data  # test finalizer
 
     @test metadata_type(Main) <: Metadata.GlobalMetadata
     @attach_metadata(x, meta)
@@ -126,7 +126,7 @@ end
     @test @metadata(x, :y) == 2
     x = MyType(1)
     GC.gc()
-    @test @metadata(x) == Metadata.no_metadata  # test finalizer on nested mutables
+    @test @metadata(x) == Metadata.no_data  # test finalizer on nested mutables
     @test_logs(
         (:warn, "Cannot create finalizer for MyType{$Int}. Global dictionary must be manually deleted."),
         @attach_metadata(x, meta)

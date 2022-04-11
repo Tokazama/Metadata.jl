@@ -147,7 +147,7 @@ end
 
 # Reducing dimensions
 # FIXME reduction across all dimensions results in a single element
-reduce_metadata(m, ::Colon) = no_metadata
+reduce_metadata(m, ::Colon) = no_data
 for (mod, funs) in (
     (:Base, (:sum, :prod, :maximum, :minimum, :extrema, :argmax, :argmin)),
     (:Statistics, (:mean, :std, :var, :median)),
@@ -177,7 +177,7 @@ for (mod, funs) in ((:Base, (:findmax, :findmin)),)
 end
 
 # Reshape
-reshape_metadata(m, dims) = MetadataInterface.no_metadata
+reshape_metadata(m, dims) = MetadataInterface.no_data
 
 function _reshape(@nospecialize(x::MetaArray), dims)
     attach_metadata(reshape(parent(x), dims), reshape_metadata(metadata(x), dims))
