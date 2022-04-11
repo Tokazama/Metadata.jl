@@ -22,7 +22,6 @@ export
     attach_metadata,
     copy_metadata,
     getmeta,
-    getmeta!,
     has_metadata,
     metadata,
     metadata_type,

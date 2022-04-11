@@ -57,7 +57,7 @@ metadata(x) = no_metadata
 """
     metadata_type(::Type{T})
 
-Returns the type of the metadata associated with `x`.
+Returns the type of the metadata associated with `T`.
 """
 metadata_type(x) = metadata_type(typeof(x))
 metadata_type(T::DataType) = NoMetadata
@@ -74,7 +74,7 @@ Returns `true` if `x` has metadata.
 
 Returns the the data and metadata immediately bound to `x`.
 """
-@inline function stripmeta(x)
+@inline function stripmeta(@nospecialize x)
     if metadata_type(x) <: NoMetadata
         return (x, no_metadata)
     else
@@ -114,34 +114,6 @@ this behavior differs from `Base.get(::Function, x, keys)` in that `getmeta` pas
     else
         return m
     end
-end
-
-"""
-    getmeta!(x, key, default)
-
-Return the metadata associated with `key`. If `key` is not found then `default` is returned
-and stored at `key`.
-"""
-@inline getmeta!(x, k, default) = _getmeta!(metadata(x), k, default)
-_getmeta!(m, k, default) = get!(m, k, default)
-@inline _getmeta!(m::AbstractDict{String}, k::Symbol, default) = get!(m, String(k), default)
-@inline _getmeta!(m::AbstractDict{Symbol}, k::String, default) = get!(m, Symbol(k), default)
-
-"""
-    getmeta!(f::Function, x, key)
-
-Return the metadata associated with `key`. If `key` is not found then `f(x)` is returned
-and stored at `key`. Note that this behavior differs from `Base.get!(::Function, x, keys)` in
-that `getmeta!` passes `x` to `f` as an argument (as opposed to `f()`).
-"""
-@inline function getmeta!(f::Function, x, k)
-    m = metadata(x)
-    out = get(m, k, no_metadata)
-    if out === no_metadata
-        out = f(x)
-        m[k] = out
-    end
-    return out
 end
 
 """
