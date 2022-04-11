@@ -1,4 +1,7 @@
 
+# default dict
+const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
+
 # TODO should drop_metadata be delete_metadata?
 
 const modules = Module[]

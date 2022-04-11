@@ -27,11 +27,6 @@ export
     metadata_type,
     share_metadata
 
-const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,Any},<:NamedTuple}
-
-# default dict
-const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
-
 include("NoMetadata.jl")
 include("MetaStruct.jl")
 include("interface.jl")
@@ -42,8 +37,7 @@ include("MetaIO.jl")
 include("MetaUnitRange.jl")
 include("MetaArray.jl")
 
-const MetaNode{M,P} = Union{Meta{M,P},MetaStruct{M,P},MetaArray{M,P},MetaUnitRange{M,P},
-    MetaIO{M,P},MetaTuple{M,P},MetaDict{M,P}}
+#const MetaNode{M,P} = Union{Meta{M,P},MetaStruct{M,P},MetaArray{M,P},MetaUnitRange{M,P},MetaIO{M,P},MetaTuple{M,P},MetaDict{M,P}}
 
 include("propagation.jl")
 include("show.jl")

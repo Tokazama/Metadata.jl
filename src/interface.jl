@@ -5,7 +5,7 @@
 Dedicated type for associating metadata with `key`. This is used to selectively reach
 metadata using `Metadata.getmeta(x, key, d)`. `key` must be of a singleton type.
 
-!!! warning 
+!!! warning "Experimental"
     This is experimental and may change without warning
 """
 struct Meta{M,P,K}
@@ -53,7 +53,8 @@ metakey(@nospecialize T::Type{<:Meta}) = T.parameters[3]
 """
     metadata(x)
 
-Returns metadata associated with `x`
+Returns metadata immediately bound to `x`. If no metadata is bound to `x` then
+`Metadata.no_metadata` is returned.
 """
 metadata(x) = no_metadata
 metadata(@nospecialize x::Meta) = getfield(x, :metadata)

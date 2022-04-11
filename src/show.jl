@@ -10,27 +10,14 @@ metadata_summary(io::IO, @nospecialize(x::NamedTuple)) = metadata_summary(io, pa
 function metadata_summary(io::IO, @nospecialize(x::AbstractDict))
     print(io, "$(lpad(Char(0x2022), 3)) metadata:")
     suppress = get(x, :suppress, no_metadata)
-    if suppress !== no_metadata
-        for (k,v) in pairs(x)
-            if k !== :suppress
-                println(io)
-                print(io, "     ")
-                print(io, "$k")
-                print(io, " = ")
-                if in(k, suppress)
-                    print(io, "<suppressed>")
-                else
-                    print(io, v)
-                end
+    for (k,v) in pairs(x)
+        if k !== :suppress
+            print(io, "\n     $(k) = ")
+            if in(k, suppress)
+                print(io, "<suppressed>")
+            else
+                print(io, v)
             end
-        end
-    else
-        for (k,v) in pairs(x)
-            println(io)
-            print(io, "     ")
-            print(io, "$k")
-            print(io, " = ")
-            print(io, v)
         end
     end
 end
@@ -92,6 +79,4 @@ function Base.show(io::IO, ::MIME"text/plain", @nospecialize(x::MetaStruct))
     print(io, "attach_metadata($(parent(x)), ::$(metadata_type(x)))\n")
     Metadata.metadata_summary(io, metadata(x))
 end
-
-Base.show(io::IO, ::NoMetadata) = print(io, "no_metadata")
 
