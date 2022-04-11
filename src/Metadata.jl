@@ -34,9 +34,9 @@ const METADATA_TYPES = Union{<:AbstractDict{String,Any},<:AbstractDict{Symbol,An
 const MDict = Union{Dict{Symbol,Any},Dict{String,Any}}
 
 include("NoMetadata.jl")
+include("MetaStruct.jl")
 include("interface.jl")
 include("GlobalMetadata.jl")
-include("MetaStruct.jl")
 include("MetaDict.jl")
 include("MetaTuple.jl")
 include("MetaIO.jl")
@@ -45,39 +45,74 @@ include("MetaArray.jl")
 include("propagation.jl")
 include("show.jl")
 
-ArrayInterface.parent_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[3]
-ArrayInterface.parent_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[3]
-ArrayInterface.parent_type(@nospecialize T::Type{<:MetaUnitRange}) = T.parameters[2]
-ArrayInterface.parent_type(@nospecialize T::Type{<:MetaTuple}) = T.parameters[2]
-ArrayInterface.parent_type(@nospecialize T::Type{<:MetaIO}) = T.parameters[1]
-ArrayInterface.parent_type(@nospecialize T::Type{<:MetaStruct}) = T.parameters[1]
+_merge_keys(@nospecialize(x::Tuple), @nospecialize(y::Tuple)) = (x..., y...)
+function _merge_keys(@nospecialize(x), @nospecialize(y))
+    out = Vector{Symbol}(undef, length(x) + length(y))
+    i = 1
+    @inbounds for x_i in x 
+        out[i] = Symbol(x_i)
+        i += 1
+    end
+    @inbounds for y_i in y
+        out[i] = Symbol(y_i)
+        i += 1
+    end
+    return out
+end
 
-metadata_type(@nospecialize T::Type{<:MetaArray}) = T.parameters[4]
-metadata_type(@nospecialize T::Type{<:MetaDict}) = T.parameters[4]
-metadata_type(@nospecialize T::Type{<:MetaTuple}) = T.parameters[3]
-metadata_type(@nospecialize T::Type{<:MetaUnitRange}) = T.parameters[3]
-metadata_type(@nospecialize T::Type{<:MetaIO}) = T.parameters[2]
-metadata_type(@nospecialize T::Type{<:MetaStruct}) = T.parameters[2]
+#=
+    @def_meta_node MT T
 
-unsafe_attach_metadata(x, m) = MetaStruct(x, m)
-unsafe_attach_metadata(@nospecialize(x::AbstractArray), m) = _MetaArray(x, m)
-unsafe_attach_metadata(@nospecialize(x::Union{Tuple,MetaTuple}), m) = _MetaTuple(x, m)
-unsafe_attach_metadata(@nospecialize(x::AbstractUnitRange), m) = _MetaUnitRange(x, m)
-unsafe_attach_metadata(@nospecialize(x::IO), m) = MetaIO(x, m)
-unsafe_attach_metadata(@nospecialize(x::AbstractDict), m) = _MetaDict(x, m)
-unsafe_attach_metadata(@nospecialize(x::NamedTuple), m) = _MetaDict(pairs(x), m)
+* `MT`: metadata type
+* `T`: type that is wrapped
+=#
+macro def_meta_node(MT, unsafe_constructor=nothing, T=nothing)
+    blk = quote
+        Base.parent(@nospecialize x::$MT) = getfield(x, 1)
+        @inline ArrayInterface.parent_type(@nospecialize T::Type{<:$MT}) = @inbounds T.parameters[2]
 
-@defproperties MetaArray
+        Metadata.metadata(@nospecialize x::$(MT)) = getfield(x, 2)
+        @inline Metadata.metadata_type(@nospecialize T::Type{<:$MT}) = @inbounds T.parameters[1]
 
-@defproperties MetaUnitRange
+        Base.getproperty(x::$MT, k::String) = getproperty(x, Symbol(k))
+        @inline function Base.getproperty(x::$MT, k::Symbol)
+            out = get(properties(x), k, Metadata.no_metadata)
+            if out === Metadata.no_metadata
+                return getproperty(parent(x), k)
+            else
+                return out
+            end
+        end
+        Base.setproperty!(x::$MT, k::String, v) = setproperty!(x, Symbol(k), v)
+        function Base.setproperty!(x::$MT, k::Symbol, v)
+            props = properties(x)
+            if haskey(props, k)
+                setindex!(props, v, k)
+            else
+                setproperty!(parent(x), k, v)
+            end
+        end
+        Base.propertynames(x::$MT) = keys(properties(x))
+        Base.hasproperty(x::$MT, s::Symbol) = haskey(properties(x), s) || hasproperty(parent(x), s)
+    end
+    if T !== nothing && unsafe_constructor !== nothing
+        push!(blk.args, :(Metadata.unsafe_attach_metadata(@nospecialize(x::$T), @nospecialize(m)) = $(unsafe_constructor)(x, m)))
+        push!(blk.args, :(Metadata.unsafe_attach_metadata(@nospecialize(x::$T), ::Metadata.NoMetadata) = x))
+    end
+    esc(blk)
+end
 
-@defproperties MetaStruct
+@def_meta_node MetaArray _MetaArray AbstractArray
 
-@defproperties MetaIO
+@def_meta_node MetaDict _MetaDict Union{AbstractDict,NamedTuple}
 
-@defproperties MetaTuple
+@def_meta_node MetaUnitRange _MetaUnitRange AbstractUnitRange
 
-@defproperties MetaDict
+@def_meta_node MetaIO _MetaIO IO
+
+@def_meta_node MetaTuple _MetaTuple Union{Tuple,MetaTuple}
+
+@def_meta_node MetaStruct
 
 """
     test_wrapper(::Type{WrapperType}, x::X)

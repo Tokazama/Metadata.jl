@@ -6,11 +6,13 @@ Type for storing metadata alongside anything that is subtype of `AbstractUnitRan
 not intended that this be constructed directly. `attach_metadata(::AbstractUnitRange, meta)`
 should be used instead.
 """
-struct MetaUnitRange{T,P<:AbstractUnitRange{T},M} <: AbstractUnitRange{T}
+struct MetaUnitRange{M,P,T} <: AbstractUnitRange{T}
     parent::P
     metadata::M
 
-    global _MetaUnitRange(@nospecialize(p), @nospecialize(m)) = new{eltype(p),typeof(p),typeof(m)}(p, m)
+    global function _MetaUnitRange(@nospecialize(p::AbstractUnitRange), @nospecialize(m))
+        new{typeof(m),typeof(p),eltype(p)}(p, m)
+    end
 end
 
 for f in [:first, :last, :length]

@@ -3,9 +3,11 @@ struct MetaDict{K, V, P <: AbstractDict{K, V},M} <: AbstractDict{K, V}
     parent::P
     metadata::M
 
-    global function _MetaDict(@nospecialize(p), @nospecialize(m))
-        new{keytype(p),valtype(p),typeof(p),typeof(m)}(p, m)
+    global _MetaDict
+    function _MetaDict(@nospecialize(p::AbstractDict), @nospecialize(m))
+        new{typeof(m),typeof(p),keytype(p),valtype(p)}(p, m)
     end
+    _MetaDict(@nospecialize(p::NamedTuple), @nospecialize(m)) = _MetaDict(pairs(p), m)
 end
 
 function Base.sizehint!(@nospecialize(d::MetaDict), n::Integer)

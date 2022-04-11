@@ -107,8 +107,16 @@ has_metadata(x, k) = haskey(metadata(x), k)
     attach_metadata(x, m)
 
 Generic method for attaching metadata `m` to data `x`. This method acts as an intermediate
-step where compatability between `x` and `m` is checked using `checkmeta`.
-`unsafe_attach_metadata` is subsequently used to quickly bind the two without and further checks.
+step where compatability between `x` and `m` is checked using `checkmeta`. 
+`unsafe_attach_metadata` is subsequently used to quickly bind the two without and further
+checks.
+
+# Extended help
+
+In general, it is not advised to define new `attach_metadata` methods. Instead,
+unique types for binding `x` to metadata should define a new `unsafe_attach_metadata`
+method. For example, attaching metadata to `AbstractArray` types by defining a unique method
+for `unsafe_attach_metadata(x::AbstractArray, m)`.
 
 See also: [`unsafe_attach_metadata`](@ref), [`checkmeta`](@ref)
 """
@@ -124,6 +132,9 @@ attach_metadata(m) = Base.Fix2(attach_metadata, m)
 
 Checks if the metadata `m` is compatible with `x`. If `Bool` is not included then an error
 is throw on failure.
+
+!!! warning
+    This is an experimental method and may change without warning
 """
 checkmeta(x, m) = checkmeta(Bool, x, m) || throw(ArgumentError("data $x and metadata $m are incompatible."))
 checkmeta(::Type{Bool}, x, m) = true
@@ -136,86 +147,9 @@ binding metadata to `x` should usually  define a unique `unsafe_attach_metadata`
 
 See also [`attach_metadata`](@ref)
 """
-unsafe_attach_metadata
+unsafe_attach_metadata(x, m) = _MetaStruct(x, m)
+unsafe_attach_metadata(@nospecialize(x::MetaStruct), ::NoMetadata) = _MetaStruct(x, m)
+unsafe_attach_metadata(@nospecialize(x::MetaStruct), @nospecialize(m)) = _MetaStruct(x, m)
 
-## macro utilities
-argexpr(e::Symbol) = e
-function argexpr(e::Expr)
-    if e.head === :(::)
-        return argexpr(e.args[1])
-    elseif e.head === :macrocall
-        return argexpr(e.args[3])
-    else
-        return e
-    end
-end
-
-macro unwrap(e::Expr)
-    _unwrap(2, e)
-end
-macro unwrap(pos::Int, e::Expr)
-    _unwrap(pos + 1, e)
-end
-
-function _unwrap(pos::Int, e::Expr)
-    if e.head === :macrocall
-        call_expr = e.args[3]
-        mcall = e.args[1]
-        mline = e.args[2]
-    else  # e.head === :call
-        call_expr = e.args
-        mcall = nothing
-        mline = nothing
-    end
-
-    body = Expr(:block, Expr(:call, call_expr[1]))
-    body_call = body.args[1]
-    thunk = Expr(:call, call_expr[1])
-    for i in 2:length(call_expr)
-        if i === pos
-            p = gensym(:parent)
-            push!(thunk.args, :(@nospecialize($(call_expr[i]))))
-            pushfirst!(body.args, Expr(:(=), p, :(parent($(argexpr(call_expr[i]))))))
-            push!(body_call.args, p)
-        else
-            push!(thunk.args, call_expr[i])
-            push!(body_call.args, argexpr(call_expr[i]))
-        end
-    end
-    body = Expr(:block, body)
-    if mcall !== nothing
-        return esc(Expr(:macrocall, mcall, mline, Expr(:(=), thunk, body)))
-    else
-        return esc(Expr(:(=), thunk, body))
-    end
-end
-
-macro defproperties(T)
-    esc(quote
-        Base.parent(@nospecialize x::$T) = getfield(x, 1)
-
-        Metadata.stripmeta(@nospecialize x::$T) = (getfield(x, 1), getfield(x, 2))
-
-        Metadata.metadata(@nospecialize(x::$T)) = getfield(x, 2)
-
-        Base.getproperty(x::$T, k::String) = getproperty(x, Symbol(k))
-        @inline function Base.getproperty(x::$T, k::Symbol)
-            if hasproperty(parent(x), k)
-                return getproperty(parent(x), k)
-            else
-                return metadata(x)[k]
-            end
-        end
-
-        Base.setproperty!(x::$T, k::String, v) = setproperty!(x, Symbol(k), v)
-        @inline function Base.setproperty!(x::$T, k::Symbol, v)
-            if hasproperty(parent(x), k)
-                return setproperty!(parent(x), k, v)
-            else
-                return metadata(x)[k] = v
-            end
-        end
-        @inline Base.propertynames(x::$T) = keys(metadata(x))
-    end)
-end
+properties(@nospecialize(x)) = metadata(x)
 

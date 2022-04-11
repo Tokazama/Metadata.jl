@@ -4,38 +4,31 @@
 
 Type for storing metadata alongside subtypes of `IO`.
 """
-struct MetaIO{T<:IO,M} <: IO
+struct MetaIO{M,T<:IO} <: IO
     parent::T
     metadata::M
+
+    global _MetaIO(@nospecialize(p), @nospecialize(m)) = new{typeof(m),typeof(p)}(p, m)
 end
 
-@unwrap Base.isreadonly(x::MetaIO)
-@unwrap Base.isreadable(x::MetaIO)
-@unwrap Base.iswritable(x::MetaIO)
-@unwrap Base.stat(x::MetaIO)
-@unwrap Base.eof(x::MetaIO)
-@unwrap Base.position(x::MetaIO)
-@unwrap Base.close(x::MetaIO)
-@unwrap Base.isopen(x::MetaIO)
-@unwrap Base.ismarked(x::MetaIO)
-@unwrap Base.mark(x::MetaIO)
-@unwrap Base.unmark(x::MetaIO)
-@unwrap Base.reset(x::MetaIO)
-@unwrap Base.seekend(x::MetaIO)
+for f in [:isreadonly, :isreadable, :iswritable, :stat, :eof, :position, :close,
+    :isopen, :ismarked, :mark, :unmark, :reset, :seekend]
+    eval(:(Base.$(f)(@nospecialize x::MetaIO) = Base.$(f)(parent(x))))
+end
 
-@unwrap Base.skip(x::MetaIO, n::Integer)
-@unwrap Base.seek(x::MetaIO, n::Integer)
-@unwrap Base.read(x::MetaIO, n::Integer)
-@unwrap Base.read!(x::MetaIO, n::Ref)
-@unwrap Base.read!(x::MetaIO, n::AbstractArray)
-@unwrap Base.read!(x::MetaIO, n::Array{UInt8})
-@unwrap Base.read!(x::MetaIO, n::BitArray)
+Base.skip(@nospecialize(x::MetaIO), n::Integer) = skip(parent(x), n)
+Base.seek(@nospecialize(x::MetaIO), n::Integer) = seek(parent(x), n)
+Base.read(@nospecialize(x::MetaIO), n::Integer) = read(parent(x), n)
+Base.read!(@nospecialize(x::MetaIO), @nospecialize(r::Ref)) = read!(parent(x), r)
+Base.read!(@nospecialize(x::MetaIO), @nospecialize(A::AbstractArray)) = read!(parent(x), A)
+Base.read!(@nospecialize(x::MetaIO), r::Array{UInt8}) = read!(parent(x), r)
+Base.read!(@nospecialize(x::MetaIO), r::BitArray) = read!(parent(x), r)
 
-@unwrap Base.write(x::MetaIO, n::Array)
-@unwrap Base.write(x::MetaIO, n::AbstractArray)
-@unwrap Base.write(x::MetaIO, n::BitArray)
-@unwrap Base.write(x::MetaIO, n::Base.CodeUnits)
-@unwrap Base.write(x::MetaIO, n::Union{Float16, Float32, Float64, Int128, Int16, Int32, Int64, UInt128, UInt16, UInt32, UInt64})
+Base.write(@nospecialize(x::MetaIO), n::Union{Float16, Float32, Float64, Int128, Int16, Int32, Int64, UInt128, UInt16, UInt32, UInt64}) = write(parent(x), n)
+Base.write(@nospecialize(x::MetaIO), n::Base.CodeUnits) = write(parent(x), n)
+Base.write(@nospecialize(x::MetaIO), A::Array) = write(parent(x), A)
+Base.write(@nospecialize(x::MetaIO), A::BitArray) = write(parent(x), A)
+Base.write(@nospecialize(x::MetaIO), @nospecialize(A::AbstractArray)) = write(parent(x), A)
 
 #Base.read(@nospecialize(s::MetaIO), n::Int) = read(parent(s), n)
 

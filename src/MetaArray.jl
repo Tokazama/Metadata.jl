@@ -1,27 +1,22 @@
 
-struct MetaArray{T,N,A<:AbstractArray{T,N},M} <: AbstractArray{T, N}
+struct MetaArray{M,A,T,N} <: AbstractArray{T, N}
     parent::A
     metadata::M
 
     global function _MetaArray(@nospecialize(p), @nospecialize(m))
-        new{eltype(p),ndims(p),typeof(p),typeof(m)}(p, m)
+        new{typeof(m),typeof(p),eltype(p),ndims(p)}(p, m)
     end
-
-    MetaArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
-    MetaArray{T,N}(x::MetaArray) where {T,N} = AbstractArray{T,N}(x)
-
-    MetaArray{T}(x::MetaArray{T}) where {T} = x
-    MetaArray{T}(x::MetaArray) where {T} = AbstractArray{T}(x)
-    MetaArray(x::MetaArray) = x
+end
+@inline function Base.AbstractArray{T}(@nospecialize(x::MetaArray)) where {T}
+    _MetaArray(AbstractArray{T}(parent(x)), metadata(x))
+end
+@inline function Base.AbstractArray{T,N}(@nospecialize(x::MetaArray)) where {T,N}
+    _MetaArray(AbstractArray{T,N}(parent(x)), metadata(x))
 end
 
-Base.AbstractArray{T}(x::MetaArray{T}) where {T} = x
-Base.AbstractArray{T}(x::MetaArray) where {T} = _MetaArray(AbstractArray{T}(parent(x)), metadata(x))
-Base.AbstractArray{T,N}(x::MetaArray{T,N}) where {T,N} = x
-Base.AbstractArray{T,N}(x::MetaArray) where {T,N} = _MetaArray(AbstractArray{T,N}(parent(x)), metadata(x))
+const MetaVector{M,A,T} = MetaArray{M,A,T,1}
 
-const MetaVector{T,M,A} = MetaArray{T,1,M,A}
-const MetaMatrix{T,M,A} = MetaArray{T,2,M,A}
+const MetaMatrix{M,A,T} = MetaArray{M,A,T,2}
 
 Base.IndexStyle(@nospecialize T::Type{<:MetaArray}) = IndexStyle(parent_type(T))
 
