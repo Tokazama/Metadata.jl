@@ -1,5 +1,53 @@
 
 """
+    Meta(key, data)
+
+Dedicated type for associating metadata with `key`. This is used to selectively reach
+metadata using `Metadata.getmeta(x, key, d)`. `key` must be of a singleton type.
+
+!!! warning 
+    This is experimental and may change without warning
+"""
+struct Meta{K,P}
+    parent::P
+
+    global _Meta(@nospecialize(k), @nospecialize(p)) = new{k,typeof(p)}(p)
+end
+
+ArrayInterface.parent_type(@nospecialize T::Type{<:Meta}) = T.parameters[2]
+
+Base.parent(@nospecialize x::Meta) = getfield(x, 1)
+
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(x::Meta))
+    print(io, "Meta(", metakey(x), ", ", parent(x), ")")
+end
+
+"""
+    Metadata.rmkey(m::Meta) -> parent(m)
+    Metadata.rmkey(m) -> m
+
+Returns the the metadata key associated bound to `m`, if `m` is `Meta`. This is only
+intended for internal use.
+
+!!! warning
+    This is experimental and may change without warning
+"""
+rmkey(@nospecialize x::Meta) = parent(x)
+rmkey(@nospecialize x) = x
+
+"""
+    Metadata.metakey(m)
+
+Returns the key associated withe the metadata `m`. The only way to attach a key to
+metadata is through `Meta(key, m)`.
+
+!!! warning
+    This is experimental and may change without warning
+"""
+metakey(@nospecialize x::Meta) = metakey(typeof(x))
+metakey(@nospecialize T::Type{<:Meta}) = T.parameters[1]
+
+"""
     metadata(x)
 
 Returns metadata associated with `x`
@@ -134,7 +182,7 @@ Checks if the metadata `m` is compatible with `x`. If `Bool` is not included the
 is throw on failure.
 
 !!! warning
-    This is an experimental method and may change without warning
+    This is experimentaland may change without warning
 """
 checkmeta(x, m) = checkmeta(Bool, x, m) || throw(ArgumentError("data $x and metadata $m are incompatible."))
 checkmeta(::Type{Bool}, x, m) = true
@@ -151,5 +199,10 @@ unsafe_attach_metadata(x, m) = _MetaStruct(x, m)
 unsafe_attach_metadata(@nospecialize(x::MetaStruct), ::NoMetadata) = _MetaStruct(x, m)
 unsafe_attach_metadata(@nospecialize(x::MetaStruct), @nospecialize(m)) = _MetaStruct(x, m)
 
+"""
+    properties(x)
+
+Returns properties associated with bound to `x`.
+"""
 properties(@nospecialize(x)) = metadata(x)
 

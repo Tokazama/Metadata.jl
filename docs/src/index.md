@@ -1,49 +1,13 @@
-# Metadata
 
-
-```@docs
-Metadata
+```@meta
+CurrentModule = Metadata
 ```
 
-## Public
+# Static
 
-```@docs
-Metadata.attach_metadata
-Metadata.@attach_metadata
-
-Metadata.has_metadata
-Metadata.@has_metadata
-
-Metadata.metadata
-Metadata.@metadata
-
-Metadata.@metadata!
-
-Metadata.copy_metadata
-Metadata.@copy_metadata
-
-Metadata.share_metadata
-Metadata.@share_metadata
-
-Metadata.drop_metadata
-
-Metadata.test_wrapper
-
-Metadata.getmeta
-Metadata.getmeta!
+```@index
 ```
 
-## Internal
-
-```@docs
-Metadata.NoMetadata
-Metadata.metadata_summary
-Metadata.MetaArray
-Metadata.MetaRange
-Metadata.MetaUnitRange
-Metadata.MetadataPropagation
-Metadata.CopyMetadata
-Metadata.DropMetadata
-Metadata.ShareMetadata
+```@autodocs
+Modules = [Metadata]
 ```
-
