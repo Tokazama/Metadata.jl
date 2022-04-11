@@ -8,18 +8,21 @@ metadata using `Metadata.getmeta(x, key, d)`. `key` must be of a singleton type.
 !!! warning 
     This is experimental and may change without warning
 """
-struct Meta{K,P}
+struct Meta{M,P,K}
     parent::P
+    metadata::M
 
-    global _Meta(@nospecialize(k), @nospecialize(p)) = new{k,typeof(p)}(p)
+    global _Meta
+    _Meta(@nospecialize(k), @nospecialize(p), @nospecialize(m)) = new{typeof(m),typeof(p),k}(p, m)
+    _Meta(@nospecialize(k), @nospecialize(p)) = new{NoMetadata,typeof(p),k}(p, no_metadata)
 end
 
 ArrayInterface.parent_type(@nospecialize T::Type{<:Meta}) = T.parameters[2]
 
-Base.parent(@nospecialize x::Meta) = getfield(x, 1)
+Base.parent(@nospecialize x::Meta) = getfield(x, :parent)
 
-function Base.show(io::IO, ::MIME"text/plain", @nospecialize(x::Meta))
-    print(io, "Meta(", metakey(x), ", ", parent(x), ")")
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(m::Meta))
+    print(io, "Meta(", metakey(m), ", ", parent(m), ", ", metadata(m), ")")
 end
 
 """
@@ -45,7 +48,7 @@ metadata is through `Meta(key, m)`.
     This is experimental and may change without warning
 """
 metakey(@nospecialize x::Meta) = metakey(typeof(x))
-metakey(@nospecialize T::Type{<:Meta}) = T.parameters[1]
+metakey(@nospecialize T::Type{<:Meta}) = T.parameters[3]
 
 """
     metadata(x)
@@ -53,6 +56,7 @@ metakey(@nospecialize T::Type{<:Meta}) = T.parameters[1]
 Returns metadata associated with `x`
 """
 metadata(x) = no_metadata
+metadata(@nospecialize x::Meta) = getfield(x, :metadata)
 
 """
     metadata_type(::Type{T})
@@ -61,6 +65,30 @@ Returns the type of the metadata associated with `T`.
 """
 metadata_type(x) = metadata_type(typeof(x))
 metadata_type(T::DataType) = NoMetadata
+metadata_type(@nospecialize m::Meta) = typeof(m).parameters[1]
+metadata_type(@nospecialize T::Type{<:Meta}) = T.parameters[1]
+
+# This summarizes all nested metadata wrappers using only the singleton types.
+# The benefits are:
+#
+# - The return value is agnostic to the type of any parent data (e.g.,
+#   `parent(::MetaStruct)`, `parent(::KeyedMeta)`, etc.), thus avoiding extra code gen.
+# - Since everything is a singleton type it's easy for the compiler to completely inline
+#   even deeply nested types.
+#
+# Once we have this type we can use it to create a map of all the metadata nodes in the type
+# domain without losing information or trying to specialize anymore.
+@inline layout(@nospecialize x::Meta) = _Meta(metakey(x), layout(parent(x)))
+@inline function layout(@nospecialize x)
+    m = metadata(x)
+    if m !== no_metadata
+        return _MetaStruct(layout(parent(x)), layout(m))
+    elseif Base.issingletontype(typeof(x))
+        return x
+    else
+        return no_metadata
+    end
+end
 
 """
     has_metadata(x)::Bool
@@ -82,19 +110,12 @@ Returns the the data and metadata immediately bound to `x`.
     end
 end
 
-struct GetMeta{K,D}
-    key::K
-    default::D
-end
-
-@inline (g::GetMeta)(x) = _getmeta(metadata(x), getfield(g, 1), getfield(g, 2))
-
 """
     getmeta(x, key, default)
 
 Return the metadata associated with `key`, or return `default` if `key` is not found.
 """
-@inline getmeta(x, k, default) = GetMeta(k, default)(x)
+@inline getmeta(x, k, default) = _getmeta(metadata(x), k, default)
 _getmeta(m, k, default) = get(m, k, default)
 @inline _getmeta(m::AbstractDict{String}, k::Symbol, default) = get(m, String(k), default)
 @inline _getmeta(m::AbstractDict{Symbol}, k::String, default) = get(m, Symbol(k), default)

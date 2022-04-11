@@ -43,6 +43,6 @@ Base.haskey(@nospecialize(d::MetaDict), k) = haskey(parent(d), k)
 Base.iterate(@nospecialize(d::MetaDict), args...) = iterate(parent(d), args...)
 
 for f in [:length, :first,:last, :isempty, :keys, :values]
-    eval(:(Base.$(f)(@nospecialize t::MetaDict) = Base.$(f)(getfield(t, 1))))
+    eval(:(Base.$(f)(@nospecialize d::MetaDict) = Base.$(f)(parent(d))))
 end
 

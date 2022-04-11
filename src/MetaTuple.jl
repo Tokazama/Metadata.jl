@@ -11,7 +11,7 @@ ArrayInterface.known_length(::Type{<:MetaTuple{N}}) where {N} = N
 Base.eltype(T::Type{<:MetaTuple}) = eltype(parent_type(T))
 
 for f in [:length, :firstindex, :lastindex, :first,:last, :all, :any, :isempty, :prod, :sum]
-    eval(:(Base.$(f)(@nospecialize t::MetaTuple) = Base.$(f)(getfield(t, :parent))))
+    eval(:(Base.$(f)(@nospecialize t::MetaTuple) = Base.$(f)(parent(t))))
 end
 
 Base.tail(t::MetaTuple) = _MetaTuple(Base.tail(parent(t)), metadata(t))
@@ -22,8 +22,8 @@ Base.eachindex(@nospecialize t::MetaTuple) = static(1):static(known_length(t))
 Base.axes(@nospecialize t::MetaTuple) = (eachindex(T),)
 
 Base.getindex(@nospecialize(t::MetaTuple), ::Colon) = t
-@propagate_inbounds Base.getindex(@nospecialize(t::MetaTuple), i::Int) = getfield(getfield(t, 1), i)
-@propagate_inbounds Base.getindex(@nospecialize(t::MetaTuple), i::Integer) = getfield(getfield(t, 1), Int(i))
+@propagate_inbounds Base.getindex(@nospecialize(t::MetaTuple), i::Int) = parent(t)[i]
+@propagate_inbounds Base.getindex(@nospecialize(t::MetaTuple), i::Integer) = t[Int(i)]
 
 @inline function Base.iterate(@nospecialize(t::MetaTuple), i::Int=1)
     if 1 <= i <= length(t)
@@ -48,14 +48,14 @@ Base.reverse(t::MetaTuple) = _MetaTuple(reverse(parent(t)), metadata(t))
 
 #getindex(t::Tuple, b::AbstractArray{Bool,1}) = length(b) == length(t) ? getindex(t, findall(b)) : throw(BoundsError(t, b))
 
-function Base.get(t::MetaTuple, i::Integer, default)
+function Base.get(@nospecialize(t::MetaTuple), i::Integer, default)
     if i in 1:length(t)
-        return getfield(getfield(t, 1), i)
+        return @inbounds(parent(t)[i])
     else
         return default
     end
 end
-function Base.get(f::Union{Type,Function}, t::MetaTuple, i::Integer)
+function Base.get(f::Union{Type,Function}, @nospecialize(t::MetaTuple), i::Integer)
     out = get(t, i, no_metadata)
     if out === no_metadata
         return f()

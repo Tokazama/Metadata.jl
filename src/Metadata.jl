@@ -41,6 +41,10 @@ include("MetaTuple.jl")
 include("MetaIO.jl")
 include("MetaUnitRange.jl")
 include("MetaArray.jl")
+
+const MetaNode{M,P} = Union{Meta{M,P},MetaStruct{M,P},MetaArray{M,P},MetaUnitRange{M,P},
+    MetaIO{M,P},MetaTuple{M,P},MetaDict{M,P}}
+
 include("propagation.jl")
 include("show.jl")
 
@@ -67,10 +71,10 @@ end
 =#
 macro def_meta_node(MT, unsafe_constructor=nothing, T=nothing)
     blk = quote
-        Base.parent(@nospecialize x::$MT) = getfield(x, 1)
+        Base.parent(@nospecialize x::$MT) = getfield(x, :parent)
         @inline ArrayInterface.parent_type(@nospecialize T::Type{<:$MT}) = @inbounds T.parameters[2]
 
-        Metadata.metadata(@nospecialize x::$(MT)) = getfield(x, 2)
+        Metadata.metadata(@nospecialize x::$(MT)) = getfield(x, :metadata)
         @inline Metadata.metadata_type(@nospecialize T::Type{<:$MT}) = @inbounds T.parameters[1]
 
         Base.getproperty(x::$MT, k::String) = getproperty(x, Symbol(k))

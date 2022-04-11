@@ -22,12 +22,12 @@ Base.IndexStyle(@nospecialize T::Type{<:MetaArray}) = IndexStyle(parent_type(T))
 
 for f in [:axes, :size, :strides, :length, :eachindex, :firstindex, :lastindex, :first, :step,
     :last, :dataids, :isreal, :iszero]
-    eval(:(Base.$(f)(@nospecialize(x::MetaArray)) = Base.$(f)(getfield(x, 1))))
+    eval(:(Base.$(f)(@nospecialize(x::MetaArray)) = Base.$(f)(parent(x))))
 end
 
 for f in [:axes, :size, :stride]
-    eval(:(Base.$(f)(@nospecialize(x::MetaArray), dim) = Base.$f(getfield(x, 1), to_dims(x, dim))))
-    eval(:(Base.$(f)(@nospecialize(x::MetaArray), dim::Integer) = Base.$f(getfield(x, 1), dim)))
+    eval(:(Base.$(f)(@nospecialize(x::MetaArray), dim) = Base.$f(parent(x), to_dims(x, dim))))
+    eval(:(Base.$(f)(@nospecialize(x::MetaArray), dim::Integer) = Base.$f(parent(x), dim)))
 end
 
 # ArrayInterface traits that just need the parent type
@@ -40,7 +40,7 @@ end
 Base.pointer(@nospecialize(x::MetaArray), n::Integer) = pointer(parent(x), n)
 
 for f in [:axes, :size, :strides, :offsets]
-    eval(:(ArrayInterface.$(f)(@nospecialize(x::MetaArray)) = ArrayInterface.$f(getfield(x, :parent))))
+    eval(:(ArrayInterface.$(f)(@nospecialize(x::MetaArray)) = ArrayInterface.$f(parent(x))))
 end
 
 Base.copy(A::MetaArray) = copy_metadata(A, copy(parent(A)))
@@ -64,7 +64,7 @@ for f in [:push!, :pushfirst!, :prepend!, :append!, :sizehint!, :resize!]
     @eval begin
         function Base.$(f)(@nospecialize(A::MetaArray), args...)
             can_change_size(A) || throw(MethodError($(f), (A, item)))
-            Base.$(f)(getfield(A, :parent), args...)
+            Base.$(f)(parent(A), args...)
             return A
         end
     end
@@ -74,7 +74,7 @@ for f in [:empty!, :pop!, :popfirst!, :popat!, :insert!, :deleteat!]
     @eval begin
         function Base.$(f)(@nospecialize(A::MetaArray), args...)
             can_change_size(A) || throw(MethodError($f, (A,)))
-            $(f)(getfield(A, :parent), args...)
+            $(f)(parent(A), args...)
             return A
         end
     end
@@ -125,24 +125,24 @@ for f in [:getindex, :view]
             $(unsafe)(A, inds)
         end
         @inline $(unsafe)(A, inds::Tuple{Vararg{Integer}}) = @inbounds($(f)(A, inds...))
-        @inline $(unsafe)(@nospecialize(A::MetaArray), inds::Tuple{Vararg{Integer}}) = $(unsafe)(getfield(A, :parent), inds)
+        @inline $(unsafe)(@nospecialize(A::MetaArray), inds::Tuple{Vararg{Integer}}) = $(unsafe)(parent(A), inds)
         @inline $(unsafe)(A, inds::Tuple{Vararg{Any}}) = @inbounds($(f)(A, inds...))
         @inline function $(unsafe)(@nospecialize(A::MetaArray), inds::Tuple{Vararg{Any}})
-            attach_metadata($(unsafe)(getfield(A, :parent), inds), index_metadata(getfield(A, :metadata), inds))
+            attach_metadata($(unsafe)(parent(A), inds), index_metadata(metadata(A), inds))
         end
     end
 end
 function Base.setindex!(@nospecialize(A::MetaArray), vals, args...)
     inds = ArrayInterface.to_indices(A, args)
     @boundscheck checkbounds(A, inds...)
-    unsafe_setindex!(getfield(A, :parent), vals, inds)
+    unsafe_setindex!(parent(A), vals, inds)
 end
 function Base.setindex!(@nospecialize(A::MetaArray), vals; kwargs...)
     inds = ArrayInterface.to_indices(A, ArrayInterface.find_all_dimnames(dimnames(A), static(keys(kwargs)), Tuple(values(kwargs)), :))
     @boundscheck checkbounds(A, inds...)
-    unsafe_setindex!(getfield(A, :parent), vals, inds)
+    unsafe_setindex!(parent(A), vals, inds)
 end
-@inline unsafe_setindex!(@nospecialize(A::MetaArray), vals, inds) = unsafe_setindex!(getfield(A, :parent), vals, inds)
+@inline unsafe_setindex!(@nospecialize(A::MetaArray), vals, inds) = unsafe_setindex!(parent(A), vals, inds)
 @inline unsafe_setindex!(A, vals, inds) = @inbounds setindex!(A, vals, inds...)
 
 # Reducing dimensions

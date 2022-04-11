@@ -16,7 +16,7 @@ struct MetaUnitRange{M,P,T} <: AbstractUnitRange{T}
 end
 
 for f in [:first, :last, :length]
-    eval(:(Base.$(f)(@nospecialize(x::MetaUnitRange)) = Base.$(f)(getfield(x, 1))))
+    eval(:(Base.$(f)(@nospecialize(x::MetaUnitRange)) = Base.$(f)(parent(x))))
 end
 
 Base.@propagate_inbounds Base.getindex(r::MetaUnitRange, i::Integer) = parent(r)[i]
