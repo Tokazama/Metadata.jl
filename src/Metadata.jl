@@ -13,12 +13,6 @@ using Statistics
 using Test
 
 export
-    @attach_metadata,
-    @metadata,
-    @metadata!,
-    @has_metadata,
-    @copy_metadata,
-    @share_metadata,
     attach_metadata,
     copy_metadata,
     getmeta,
@@ -29,7 +23,6 @@ export
 
 include("MetaStruct.jl")
 include("interface.jl")
-include("GlobalMetadata.jl")
 include("MetaDict.jl")
 include("MetaTuple.jl")
 include("MetaIO.jl")

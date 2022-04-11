@@ -77,39 +77,6 @@ julia> mr.den
 Here we attached the same metadata to a rational number.
 Again, our metadata is now considered the properties of `mr`, but we can still access the parent's properties.
 
-If the type you want to attach metadata to is mutable then each instance has a unique global identifier and you may attach metadata to a global dictionary.
-```julia
-julia> x = ones(2, 2);
-
-julia> @attach_metadata(x, meta);
-
-julia> @metadata!(x, :z, 3);
-
-julia> @metadata(x, :z)
-3
-
-julia> Pair(:x, 1) in @metadata(x)
-true
-```
-
-If users want to access all of the metadata from one structure and attach it to another they should instead use `share_metadata(src, dst)` or `copy_metadata(src, dst)`.
-```julia
-julia> mx = attach_metadata(ones(2, 2), @metadata(x));
-
-julia> mx2 = share_metadata(mx, ones(2, 2));
-
-julia> metadata(mx2) === metadata(mx)
-true
-
-julia> mx3 = copy_metadata(mx2, ones(2, 2));
-
-julia> metadata(mx3) === metadata(mx2)
-false
-
-julia> metadata(mx3) == metadata(mx2)
-true
-```
-
 # Creating New Metadata Types
 
 This package creates a very minimal number of dedicated structures and creating new dedicated structures that use this interface is encouraged.
