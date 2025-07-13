@@ -6,7 +6,7 @@ struct MetaTuple{N,P,M}
     global _MetaTuple(p::P, m::M) where {P,M} = new{length(p),P,M}(p, m)
 end
 
-ArrayInterface.known_length(::Type{<:MetaTuple{N}}) where {N} = N
+StaticArrayInterface.known_length(::Type{<:MetaTuple{N}}) where {N} = N
 
 Base.eltype(T::Type{<:MetaTuple}) = eltype(parent_type(T))
 
