@@ -5,21 +5,13 @@ version = "0.4.0"
 
 [deps]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
+StaticArrayInterface = "0d7ed370-da01-4f52-bd93-41d350b8b718"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Static = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-ArrayInterface = "5"
-Static = "0.6"
-julia = "1.6"
-
-[extras]
-Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test", "Aqua", "ArrayInterface", "Documenter"]
+ArrayInterface = "7"
+Static = "1.2"
+julia = "1.11"

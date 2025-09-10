@@ -1,11 +1,13 @@
 
 using ArrayInterface
+using StaticArrayInterface
 using Aqua
 using Documenter
 using Metadata
 using Test
 
-using ArrayInterface: parent_type, StaticInt
+using ArrayInterface: parent_type
+using StaticArrayInterface: StaticInt
 using Metadata: MetaArray, no_data
 
 Aqua.test_all(Metadata)
