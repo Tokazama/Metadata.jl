@@ -1,12 +1,7 @@
-
 module Metadata
-@doc let path = joinpath(dirname(@__DIR__), "README.md")
-    include_dependency(path)
-    replace(read(path, String), r"^```julia"m => "```jldoctest README")
-end Metadata
 
 using ArrayInterface
-using ArrayInterface: parent_type, known_first, known_last, known_step, StaticInt, to_dims, axes_types
+using ArrayInterface: parent_type
 using Base: @propagate_inbounds, OneTo, tail
 using LinearAlgebra
 using Statistics
@@ -21,6 +16,8 @@ export
     metadata_type,
     share_metadata
 
+
+# include("reflection.jl")
 include("MetaStruct.jl")
 include("interface.jl")
 include("MetaDict.jl")
@@ -38,7 +35,7 @@ _merge_keys(@nospecialize(x::Tuple), @nospecialize(y::Tuple)) = (x..., y...)
 function _merge_keys(@nospecialize(x), @nospecialize(y))
     out = Vector{Symbol}(undef, length(x) + length(y))
     i = 1
-    @inbounds for x_i in x 
+    @inbounds for x_i in x
         out[i] = Symbol(x_i)
         i += 1
     end
@@ -90,6 +87,10 @@ macro def_meta_node(MT, unsafe_constructor=nothing, T=nothing)
     end
     esc(blk)
 end
+
+# function attach_metadata(@nospecialize(io::IO), md)
+#     MetadataStream(io, md)
+# end
 
 @def_meta_node MetaArray _MetaArray AbstractArray
 

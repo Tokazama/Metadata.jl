@@ -5,7 +5,7 @@ using Documenter
 using Metadata
 using Test
 
-using ArrayInterface: parent_type, StaticInt
+using ArrayInterface: parent_type
 using Metadata: MetaArray, no_data
 
 Aqua.test_all(Metadata)
@@ -58,7 +58,7 @@ end
 @testset "LinearIndices/CartesianIndices" begin
     meta = Dict{Symbol,Any}(:m1 => 1, :m2 => [1, 2])
     x = LinearIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
-    @test @inferred(metadata(x)) == no_data 
+    @test @inferred(metadata(x)) == no_data
     @test metadata(x, dim=1) == meta
     @test metadata(x, dim=StaticInt(1)) == meta
     @test metadata(x, :m1, dim=1) == 1
@@ -71,7 +71,7 @@ end
 
     meta = (m1 =1, m2=[1, 2])
     x = CartesianIndices((Metadata.MetaUnitRange(1:10, meta),1:10))
-    @test @inferred(metadata(x)) == no_data 
+    @test @inferred(metadata(x)) == no_data
     @test metadata(x, dim=1) == meta
     @test metadata(x, dim=StaticInt(1)) == meta
     @test metadata(x) == Metadata.no_data
@@ -114,4 +114,3 @@ if VERSION > v"1.6" && sizeof(Int) === 8
         doctest(Metadata)
     end
 end
-

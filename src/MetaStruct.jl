@@ -20,7 +20,6 @@ Base.eltype(::Type{T}) where {T<:MetaStruct} = eltype(parent_type(T))
 
 Base.copy(x::MetaStruct) = propagate_metadata(x, deepcopy(parent(x)))
 
-
 Base.:(==)(@nospecialize(x::MetaStruct), @nospecialize(y::MetaStruct)) = ==(parent(x), parent(y))
 Base.:(==)(x::Any, @nospecialize(y::MetaStruct)) = ==(x, parent(y))
 Base.:(==)(@nospecialize(x::MetaStruct), y::Any) = ==(parent(x), y)
