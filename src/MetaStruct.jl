@@ -5,7 +5,7 @@
 Binds a parent instance (`p`) to some metadata (`m`). `MetaStruct` is the generic type
 constructed when `attach_metadata(p, m)` is called.
 
-See also: [`attach_metadata`](@ref), [`attach_eachmeta`](@ref)
+See also: [`attach_metadata`](@ref)
 """
 struct MetaStruct{M,P}
     parent::P
