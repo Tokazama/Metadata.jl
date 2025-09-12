@@ -5,14 +5,14 @@
 [![dev-docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://Tokazama.github.io/Metadata.jl/dev)
 [![codecov](https://codecov.io/gh/Tokazama/Metadata.jl/branch/master/graph/badge.svg?token=hx7hbIIoxE)](https://codecov.io/gh/Tokazama/Metadata.jl)
 
-# Introduction
+## Introduction
 
 The term "metadata" is widely used across very different applications.
 Therefore, "metadata" may translate to very different structures and implementations in code.
 The `Metadata` package attempts to provide a generic interface for interacting with metadata in Julia that is agnostic to the exact type of metadata present.
 This package typically assumes metadata to be a collection of values paired to `Symbol` keys (e.g., `AbstractDict{Symbol,Any}`, `NamedTuple`), but metadata that doesn't perfectly fit this criteria should still work with most methods if adhering to the basic interface.
 
-# Attaching Metadata
+## Attaching Metadata
 
 The most important method to know is `attach_metadata`.
 It's intended to give users a generic way of attaching metadata to any given type without worrying about the particulars what type is appropriate for binding metadata to a particular.
@@ -77,7 +77,7 @@ julia> mr.den
 Here we attached the same metadata to a rational number.
 Again, our metadata is now considered the properties of `mr`, but we can still access the parent's properties.
 
-# Creating New Metadata Types
+## Creating New Metadata Types
 
 This package creates a very minimal number of dedicated structures and creating new dedicated structures that use this interface is encouraged.
 ```

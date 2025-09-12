@@ -6,8 +6,6 @@ struct MetaTuple{N,P,M}
     global _MetaTuple(p::P, m::M) where {P,M} = new{length(p),P,M}(p, m)
 end
 
-ArrayInterface.known_length(::Type{<:MetaTuple{N}}) where {N} = N
-
 Base.eltype(T::Type{<:MetaTuple}) = eltype(parent_type(T))
 
 for f in [:length, :firstindex, :lastindex, :first,:last, :all, :any, :isempty, :prod, :sum]
@@ -18,7 +16,7 @@ Base.tail(t::MetaTuple) = _MetaTuple(Base.tail(parent(t)), metadata(t))
 
 Base.front(t::MetaTuple) = _MetaTuple(Base.front(parent(t)), metadata(t))
 
-Base.eachindex(@nospecialize t::MetaTuple) = static(1):static(known_length(t))
+Base.eachindex(@nospecialize t::MetaTuple) = eachindex(parent(t))
 Base.axes(@nospecialize t::MetaTuple) = (eachindex(T),)
 
 Base.getindex(@nospecialize(t::MetaTuple), ::Colon) = t
